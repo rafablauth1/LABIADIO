@@ -1,19 +1,55 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Modal from '@/components/ui/Modal'
-import { FormField, FormSection, FormGrid, FileUpload } from '@/components/ui/FormField'
+import { FormField, FormSection, FormGrid } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Sparkles, Paperclip, Loader2 } from 'lucide-react'
 
 interface Props { open: boolean; onClose: () => void }
 
 export default function InstrucaoModal({ open, onClose }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [fileName, setFileName] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
   const [f, setF] = useState({ cod: '', rev: '', titulo: '', tags: '', data: '', aprov: '', status: 'Vigente' })
+
   function set(k: keyof typeof f, v: string) { setF(p => ({ ...p, [k]: v })) }
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0]
+    if (!selected) return
+    setFile(selected)
+    setFileName(selected.name)
+  }
+
+  async function analyzeWithAI() {
+    if (!file) { alert('Selecione um arquivo primeiro.'); return }
+    setAnalyzing(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('tipo', 'it')
+      const res = await fetch('/api/analyze-pdf', { method: 'POST', body: form })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || 'Erro ao analisar PDF.'); return }
+      setF(p => ({
+        ...p,
+        cod:   data.cod   || p.cod,
+        titulo: data.titulo || p.titulo,
+        rev:   data.rev   || p.rev,
+        tags:  data.tags  || p.tags,
+        aprov: data.aprov || p.aprov,
+      }))
+    } finally {
+      setAnalyzing(false)
+    }
+  }
 
   async function save() {
     if (!f.cod || !f.titulo) { alert('Preencha código e título.'); return }
@@ -42,6 +78,34 @@ export default function InstrucaoModal({ open, onClose }: Props) {
       }
     >
       <FormGrid>
+        <FormSection>Arquivo</FormSection>
+        <div className="col-span-2 flex flex-col gap-2">
+          <div
+            className="border border-dashed border-white/15 rounded-lg p-4 text-center
+                       hover:border-gold/40 hover:bg-gold/5 transition-colors cursor-pointer"
+            onClick={() => fileRef.current?.click()}
+          >
+            <Paperclip size={16} className="mx-auto mb-1 text-white/30" />
+            <p className="text-[11px] text-white/40">
+              {fileName ? <span className="text-white/70">{fileName}</span> : 'Clique para anexar arquivo'}
+            </p>
+            <input ref={fileRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFile} />
+          </div>
+          <button
+            onClick={analyzeWithAI}
+            disabled={analyzing || !file}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-btn border border-teal/30
+                       bg-teal/5 text-teal text-xs font-medium hover:bg-teal/10 transition-colors
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {analyzing
+              ? <><Loader2 size={13} className="animate-spin" /> Analisando...</>
+              : <><Sparkles size={13} /> Analisar PDF com IA e Preencher Campos</>
+            }
+          </button>
+        </div>
+
+        <FormSection>Dados da IT</FormSection>
         <FormField label="Código *">
           <input className={inp} value={f.cod} onChange={e => set('cod', e.target.value)} placeholder="IT-EMC-001" />
         </FormField>
@@ -67,8 +131,6 @@ export default function InstrucaoModal({ open, onClose }: Props) {
             <option>Obsoleto</option>
           </select>
         </FormField>
-        <FormSection>Arquivo</FormSection>
-        <FileUpload label="arquivo" accept=".pdf,.doc,.docx" />
       </FormGrid>
     </Modal>
   )
