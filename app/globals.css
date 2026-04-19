@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens como CSS vars (para uso no HTML legado) ── */
+:root {
+  --bg:     #0B0E14;
+  --bg2:    #141B28;
+  --sf2:    #1A2338;
+  --brd:    rgba(255,255,255,0.07);
+  --gold:   #E8B94B;
+  --teal:   #22D3C8;
+  --acc:    #3B82F6;
+  --gn:     #10B981;
+  --am:     #F59E0B;
+  --rd:     #EF4444;
+  --tx:     #F0F4F8;
+  --tx2:    #94A3B8;
+  --mu:     #4A5568;
+}
+
+@layer base {
+  * { border-color: rgba(255, 255, 255, 0.07); }
+  body { @apply bg-navy text-white; }
+  
+  /* Scrollbar */
+  ::-webkit-scrollbar       { @apply w-1.5 h-1.5; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full; }
+}
+
+@layer components {
+  /* Cards */
+  .card {
+    @apply bg-navy-2 border rounded-card;
+    border-color: rgba(255, 255, 255, 0.07);
+  }
+  
+  /* Botões */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-btn
+           bg-gold text-navy font-bold text-sm
+           hover:brightness-110 active:scale-95 transition-all;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-btn
+           bg-navy-2 text-white border border-white/10 text-sm font-medium
+           hover:border-teal hover:text-teal transition-all;
+  }
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-btn
+           bg-danger/10 text-danger border border-danger/20 text-sm font-medium
+           hover:bg-danger hover:text-white transition-all;
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full bg-navy border border-white/10 rounded-btn
+           text-white placeholder:text-white/30 text-sm px-3 py-2
+           focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20
+           transition-colors;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full
+           font-mono text-[10px] font-medium tracking-wider;
+  }
+  .badge-gold    { @apply badge bg-gold/10 text-gold border border-gold/20; }
+  .badge-teal    { @apply badge bg-teal/10 text-teal border border-teal/20; }
+  .badge-success { @apply badge bg-success/10 text-success border border-success/20; }
+  .badge-warning { @apply badge bg-warning/10 text-warning border border-warning/20; }
+  .badge-danger  { @apply badge bg-danger/10 text-danger border border-danger/20; }
+  .badge-accent  { @apply badge bg-accent/10 text-accent border border-accent/20; }
+
+  /* Tag de equipamento */
+  .tag-chip {
+    @apply inline-flex items-center px-2 py-0.5
+           bg-gold/10 text-gold border border-gold/20
+           font-mono text-[10px] font-semibold tracking-wider rounded;
+  }
+
+  /* Seção de formulário */
+  .form-section {
+    @apply font-mono text-[9px] tracking-[2.5px] text-gold uppercase
+           pt-4 pb-2 border-t mt-1;
+    border-color: rgba(255, 255, 255, 0.07);
+  }
+
+  /* Animações */
+  .animate-fade-in { animation: fadeIn 0.2s ease; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
