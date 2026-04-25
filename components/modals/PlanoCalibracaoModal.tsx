@@ -6,6 +6,7 @@ import { FormField, FormGrid } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Check, Search, X } from 'lucide-react'
+import { useEquipamentos } from '@/lib/hooks/useEquipamentos'
 
 interface Grandeza { nome: string; simbolo?: string; unidade: string; categoria: string }
 
@@ -20,12 +21,18 @@ const CATEGORIAS = ['Elétrica', 'RF / TF', 'EMC', 'Ambiental']
 export default function PlanoCalibracaoModal({ open, onClose, grandezas = [] }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const { equip } = useEquipamentos()
   const [saving, setSaving] = useState(false)
   const [buscaG, setBuscaG] = useState('')
-  const [f, setF] = useState({ tag: '', lab: '', per: '12', ultima: '', proxima: '', ncert: '', escopo: '' })
+  const [f, setF] = useState({ equip_id: '', tag: '', lab: '', per: '12', ultima: '', proxima: '', ncert: '', escopo: '' })
   const [selectedGrandezas, setSelectedGrandezas] = useState<string[]>([])
 
   function set(k: keyof typeof f, v: string) { setF(p => ({ ...p, [k]: v })) }
+
+  function selectEquip(id: string) {
+    const e = equip.find(e => e.id === id)
+    setF(p => ({ ...p, equip_id: id, tag: e?.tag || '' }))
+  }
 
   function toggleGrandeza(nome: string) {
     setSelectedGrandezas(prev =>
@@ -34,9 +41,11 @@ export default function PlanoCalibracaoModal({ open, onClose, grandezas = [] }: 
   }
 
   async function save() {
-    if (!f.tag) { alert('Selecione a TAG.'); return }
+    if (!f.equip_id) { alert('Selecione o equipamento.'); return }
     setSaving(true)
+    const { data: labId } = await supabase.rpc('get_user_lab_id')
     const { error } = await supabase.from('planos_calibracao').insert({
+      lab_id: labId,
       tag: f.tag.toUpperCase(),
       laboratorio: f.lab || null,
       periodicidade: parseInt(f.per),
@@ -62,16 +71,17 @@ export default function PlanoCalibracaoModal({ open, onClose, grandezas = [] }: 
   }, {} as Record<string, Grandeza[]>)
 
   const inp = 'input'
+  const sel = 'input w-full bg-navy border border-white/10 rounded-btn text-white text-sm px-3 py-2 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 transition-colors'
 
   return (
     <Modal
       open={open}
-      onClose={() => { onClose(); setSelectedGrandezas([]); setBuscaG('') }}
+      onClose={() => { onClose(); setSelectedGrandezas([]); setBuscaG(''); setF({ equip_id: '', tag: '', lab: '', per: '12', ultima: '', proxima: '', ncert: '', escopo: '' }) }}
       title="Plano de Calibração"
       size="lg"
       footer={
         <>
-          <button className="btn-secondary text-xs" onClick={() => { onClose(); setSelectedGrandezas([]); setBuscaG('') }}>
+          <button className="btn-secondary text-xs" onClick={() => { onClose(); setSelectedGrandezas([]); setBuscaG(''); setF({ equip_id: '', tag: '', lab: '', per: '12', ultima: '', proxima: '', ncert: '', escopo: '' }) }}>
             Cancelar
           </button>
           <button className="btn-primary text-xs" onClick={save} disabled={saving}>
@@ -81,8 +91,13 @@ export default function PlanoCalibracaoModal({ open, onClose, grandezas = [] }: 
       }
     >
       <FormGrid>
-        <FormField label="TAG *">
-          <input className={inp} value={f.tag} onChange={e => set('tag', e.target.value)} placeholder="TAG do equipamento" />
+        <FormField label="Equipamento *" full>
+          <select className={sel} value={f.equip_id} onChange={e => selectEquip(e.target.value)}>
+            <option value="">Selecionar equipamento...</option>
+            {equip.map(e => (
+              <option key={e.id} value={e.id}>{e.tag} — {e.descricao}</option>
+            ))}
+          </select>
         </FormField>
         <FormField label="Laboratório">
           <input className={inp} value={f.lab} onChange={e => set('lab', e.target.value)} placeholder="Lab acreditado" />

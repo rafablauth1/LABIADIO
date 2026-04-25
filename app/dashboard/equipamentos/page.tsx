@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import EquipamentoModal from '@/components/modals/EquipamentoModal'
@@ -25,6 +25,20 @@ export default function EquipamentosPage() {
   const supabase = createClient()
   const [equip, setEquip] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
+  async function excluir(id: string, tag: string) {
+    if (!confirm(`Excluir o equipamento ${tag}?\n\nIsso também removerá checagens e certificados vinculados.`)) return
+    setDeleting(id)
+    await supabase.from('checagens').delete().eq('equip_id', id)
+    await supabase.from('certificados').delete().eq('equip_id', id)
+    await supabase.from('controle_checagens').delete().eq('equip_id', id)
+    const { error } = await supabase.from('equipamentos').delete().eq('id', id)
+    setDeleting(null)
+    if (error) { alert('Erro: ' + error.message); return }
+    load()
+  }
 
   async function load() {
     const { data } = await supabase.from('equipamentos').select('*').order('tag')
@@ -44,7 +58,7 @@ export default function EquipamentosPage() {
           <p className="font-mono text-[9px] tracking-[2.5px] text-gold uppercase mb-1">Equipamentos</p>
           <h1 className="font-display font-bold text-2xl text-white">Padrões de Trabalho</h1>
         </div>
-        <button className="btn-primary text-xs" onClick={() => setOpen(true)}>
+        <button className="btn-primary text-xs" onClick={() => { setEditing(null); setOpen(true) }}>
           <Plus size={13} /> Cadastrar Padrão
         </button>
       </div>
@@ -100,7 +114,15 @@ export default function EquipamentosPage() {
                       }
                     </td>
                     <td className="px-4 py-2.5">
-                      <Link href={`/dashboard/equipamentos/${e.id}`} className="text-white/25 hover:text-teal transition-colors font-mono text-[10px]">Ver →</Link>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => { setEditing(e); setOpen(true) }} className="text-white/25 hover:text-gold transition-colors" title="Editar">
+                          <Pencil size={12} />
+                        </button>
+                        <button onClick={() => excluir(e.id, e.tag)} disabled={deleting === e.id} className="text-white/25 hover:text-danger transition-colors disabled:opacity-40" title="Excluir">
+                          <Trash2 size={12} />
+                        </button>
+                        <Link href={`/dashboard/equipamentos/${e.id}`} className="text-white/25 hover:text-teal transition-colors font-mono text-[10px]">Ver →</Link>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -118,7 +140,7 @@ export default function EquipamentosPage() {
         </div>
       </div>
 
-      <EquipamentoModal open={open} onClose={() => { setOpen(false); load() }} />
+      <EquipamentoModal open={open} equipamento={editing} onClose={() => { setOpen(false); setEditing(null); load() }} />
     </div>
   )
 }

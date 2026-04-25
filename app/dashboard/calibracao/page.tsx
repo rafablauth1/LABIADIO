@@ -13,7 +13,7 @@ function fmt(d: string | null) {
 }
 
 // ─── Grandezas pré-definidas ──────────────────────────────────────────────────
-interface Grandeza { nome: string; simbolo?: string; unidade: string; categoria: string }
+interface Grandeza { id?: string; nome: string; simbolo?: string; unidade: string; categoria: string }
 
 const GRANDEZAS_PADRAO: Grandeza[] = [
   // Elétrica
@@ -62,7 +62,6 @@ const GRANDEZAS_PADRAO: Grandeza[] = [
 ]
 
 const CATEGORIAS = ['Elétrica', 'RF / TF', 'EMC', 'Ambiental']
-const GRANDEZAS_KEY = 'labiadio_grandezas_custom'
 
 type Tab = 'planos' | 'params' | 'grandezas'
 
@@ -84,27 +83,33 @@ export default function CalibracaoPage() {
     setItems(data || [])
   }
 
-  useEffect(() => { load() }, [])
-
-  useEffect(() => {
-    const saved = localStorage.getItem(GRANDEZAS_KEY)
-    if (saved) { try { setCustomGrandezas(JSON.parse(saved)) } catch {} }
-  }, [])
-
-  function saveCustom(list: Grandeza[]) {
-    setCustomGrandezas(list)
-    localStorage.setItem(GRANDEZAS_KEY, JSON.stringify(list))
+  async function loadGrandezas() {
+    const { data } = await supabase.from('grandezas').select('id, nome, simbolo, unidade, categoria').order('nome')
+    setCustomGrandezas(data || [])
   }
 
-  function addCustomGrandeza() {
+  useEffect(() => { load() }, [])
+  useEffect(() => { loadGrandezas() }, [])
+
+  async function addCustomGrandeza() {
     if (!ng.nome || !ng.unidade || !ng.categoria) { alert('Preencha nome, unidade e categoria.'); return }
-    saveCustom([...customGrandezas, { nome: ng.nome!, simbolo: ng.simbolo, unidade: ng.unidade!, categoria: ng.categoria! }])
+    const { data: labId } = await supabase.rpc('get_user_lab_id')
+    const { error } = await supabase.from('grandezas').insert({
+      lab_id: labId,
+      nome: ng.nome,
+      simbolo: ng.simbolo || null,
+      unidade: ng.unidade,
+      categoria: ng.categoria,
+    })
+    if (error) { alert('Erro: ' + error.message); return }
     setOpenNovaGrand(false)
     setNg({ categoria: 'Elétrica' })
+    loadGrandezas()
   }
 
-  function removeCustomGrandeza(idx: number) {
-    saveCustom(customGrandezas.filter((_, i) => i !== idx))
+  async function removeCustomGrandeza(id: string) {
+    await supabase.from('grandezas').delete().eq('id', id)
+    loadGrandezas()
   }
 
   const todasGrandezas = [...GRANDEZAS_PADRAO, ...customGrandezas]
@@ -270,32 +275,27 @@ export default function CalibracaoPage() {
                   <span className="font-mono text-[9px] tracking-[2px] text-gold uppercase">{cat}</span>
                 </div>
                 <div className="divide-y divide-white/4">
-                  {lista.map((g, i) => {
-                    const isCustom = customGrandezas.some(c => c.nome === g.nome && c.categoria === g.categoria)
-                    const customIdx = customGrandezas.findIndex(c => c.nome === g.nome && c.categoria === g.categoria)
-                    return (
-                      <div key={i} className="px-4 py-2.5 flex items-center gap-3 hover:bg-white/2">
-                        <div className="flex-1 flex items-center gap-3">
-                          <span className="text-[12px] text-white/80">{g.nome}</span>
-                          {g.simbolo && (
-                            <span className="font-mono text-[10px] text-white/35 bg-white/5 px-1.5 py-0.5 rounded">{g.simbolo}</span>
-                          )}
-                        </div>
-                        <span className="font-mono text-[11px] text-white/50 min-w-[64px] text-right">{g.unidade || '—'}</span>
-                        {isCustom && (
-                          <button
-                            onClick={() => removeCustomGrandeza(customIdx)}
-                            className="text-white/20 hover:text-danger transition-colors ml-2"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
-                        {!isCustom && (
-                          <span className="font-mono text-[8px] text-white/20 ml-2 w-12">padrão</span>
+                  {lista.map((g, i) => (
+                    <div key={i} className="px-4 py-2.5 flex items-center gap-3 hover:bg-white/2">
+                      <div className="flex-1 flex items-center gap-3">
+                        <span className="text-[12px] text-white/80">{g.nome}</span>
+                        {g.simbolo && (
+                          <span className="font-mono text-[10px] text-white/35 bg-white/5 px-1.5 py-0.5 rounded">{g.simbolo}</span>
                         )}
                       </div>
-                    )
-                  })}
+                      <span className="font-mono text-[11px] text-white/50 min-w-[64px] text-right">{g.unidade || '—'}</span>
+                      {g.id ? (
+                        <button
+                          onClick={() => removeCustomGrandeza(g.id!)}
+                          className="text-white/20 hover:text-danger transition-colors ml-2"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      ) : (
+                        <span className="font-mono text-[8px] text-white/20 ml-2 w-12">padrão</span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Modal from '@/components/ui/Modal'
 import { FormField, FormSection, FormGrid, NormasGrid } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-interface Props { open: boolean; onClose: () => void }
+interface Props { open: boolean; onClose: () => void; equipamento?: any }
 
 const TIPOS = [
   'Gerador de Sinal', 'Amplificador de Potência', 'Analisador de Espectro',
@@ -17,17 +17,26 @@ const TIPOS = [
   'Câmara Climática', 'Outro',
 ]
 
-export default function EquipamentoModal({ open, onClose }: Props) {
+function toForm(e: any) {
+  return {
+    tag: e?.tag || '', area: e?.area || '', descricao: e?.descricao || '',
+    tipo: e?.tipo || '', fabricante: e?.fabricante || '', serie: e?.serie || '',
+    patrimonio: e?.patrimonio || '', localizacao: e?.local || '',
+    cal_dt: e?.cal_data || '', cal_val: e?.cal_val || '',
+    cal_per: String(e?.cal_per ?? 12), chk_per: String(e?.chk_per ?? 6),
+    ncert: e?.ncert || '', lab_cal: e?.lab_cal || '',
+    normas: e?.normas || [] as string[],
+    obs: e?.obs || '', status: e?.status || 'ativo', status_obs: e?.status_obs || '',
+  }
+}
+
+export default function EquipamentoModal({ open, onClose, equipamento }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [saving, setSaving] = useState(false)
+  const [f, setF] = useState(toForm(equipamento))
 
-  const [f, setF] = useState({
-    tag: '', area: '', descricao: '', tipo: '', fabricante: '', serie: '',
-    patrimonio: '', localizacao: '', cal_dt: '', cal_val: '', cal_per: '12',
-    chk_per: '6', ncert: '', lab_cal: '', normas: [] as string[],
-    obs: '', status: 'ativo', status_obs: '',
-  })
+  useEffect(() => { if (open) setF(toForm(equipamento)) }, [open, equipamento])
 
   function set(k: keyof typeof f, v: string | string[]) {
     setF(p => ({ ...p, [k]: v }))
@@ -40,9 +49,7 @@ export default function EquipamentoModal({ open, onClose }: Props) {
       return
     }
     setSaving(true)
-    const { data: lab_id } = await supabase.rpc('get_user_lab_id')
-    const { error } = await supabase.from('equipamentos').insert({
-      lab_id,
+    const payload = {
       tag: f.tag.toUpperCase(),
       descricao: f.descricao,
       tipo: f.tipo,
@@ -60,7 +67,14 @@ export default function EquipamentoModal({ open, onClose }: Props) {
       obs: f.obs || null,
       status: f.status,
       status_obs: f.status_obs || null,
-    })
+    }
+    let error
+    if (equipamento?.id) {
+      ({ error } = await supabase.from('equipamentos').update(payload).eq('id', equipamento.id))
+    } else {
+      const { data: lab_id } = await supabase.rpc('get_user_lab_id')
+      ;({ error } = await supabase.from('equipamentos').insert({ lab_id, ...payload }))
+    }
     setSaving(false)
     if (error) { alert('Erro: ' + error.message); return }
     onClose()
@@ -74,13 +88,13 @@ export default function EquipamentoModal({ open, onClose }: Props) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Cadastrar Padrão de Trabalho"
+      title={equipamento?.id ? 'Editar Padrão de Trabalho' : 'Cadastrar Padrão de Trabalho'}
       size="lg"
       footer={
         <>
           <button className="btn-secondary text-xs" onClick={onClose}>Cancelar</button>
           <button className="btn-primary text-xs" onClick={save} disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar Padrão'}
+            {saving ? 'Salvando...' : equipamento?.id ? 'Salvar Alterações' : 'Salvar Padrão'}
           </button>
         </>
       }
