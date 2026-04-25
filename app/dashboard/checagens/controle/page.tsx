@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { LABS, getLabCode } from '@/lib/labs'
 import { ExternalLink, X } from 'lucide-react'
 import Link from 'next/link'
+import { FilterPill } from '@/components/ui/FilterPill'
 
 function fmt(d: string | null) {
   if (!d) return '—'
@@ -83,47 +84,33 @@ export default function ControleChecagensPage() {
 
       {/* Filtro status */}
       <div className="flex items-center gap-1.5">
-        {([
-          { key: 'todos',    label: 'Todos',       count: items.length },
-          { key: 'vencida',  label: 'Vencidas',    count: vencidas,   color: '#F87171' },
-          { key: 'a_vencer', label: 'A vencer 60d', count: aVencer,   color: '#F59E0B' },
-          { key: 'ok',       label: 'Em dia',       count: items.length - vencidas - aVencer, color: '#22C55E' },
-        ] as const).map(f => {
-          const active = stFilter === f.key
-          return (
-            <button key={f.key} onClick={() => setStFilter(f.key as StatusFilter)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium whitespace-nowrap transition-all"
-              style={{
-                color:      active ? (f as any).color || '#fff' : 'rgba(255,255,255,0.35)',
-                background: active ? `${(f as any).color || '#fff'}18` : 'transparent',
-                border:     `1px solid ${active ? `${(f as any).color || '#fff'}30` : 'transparent'}`,
-              }}>
-              {f.label}
-              <span className="font-mono text-[9px] opacity-60">{f.count}</span>
-            </button>
-          )
-        })}
+        {[
+          { key: 'todos',    label: 'Todos',        count: items.length,                       color: '#fff',     bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.12)' },
+          { key: 'vencida',  label: 'Vencidas',     count: vencidas,                           color: '#F87171',  bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.25)' },
+          { key: 'a_vencer', label: 'A vencer 60d', count: aVencer,                            color: '#F59E0B',  bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.25)'  },
+          { key: 'ok',       label: 'Em dia',       count: items.length - vencidas - aVencer,  color: '#22C55E',  bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.25)'   },
+        ].map(f => (
+          <FilterPill key={f.key} active={stFilter === f.key}
+            color={f.color} bg={f.bg} border={f.border}
+            onClick={() => setStFilter(f.key as StatusFilter)}>
+            {f.label}
+            <span className="font-mono text-[9px] opacity-60">{f.count}</span>
+          </FilterPill>
+        ))}
       </div>
 
       {/* Filtro lab */}
       <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
         {[{ code: 'TODOS', color: '#fff', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.12)' } as any,
           ...LABS.filter(l => (labCounts[l.code] ?? 0) > 0),
-        ].map(lab => {
-          const active = labFilter === lab.code
-          return (
-            <button key={lab.code} onClick={() => setLabFilter(lab.code)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[10px] font-mono whitespace-nowrap transition-all"
-              style={{
-                color:      active ? lab.color : 'rgba(255,255,255,0.25)',
-                background: active ? lab.bg    : 'transparent',
-                border:     `1px solid ${active ? lab.border : 'transparent'}`,
-              }}>
-              {lab.code === 'TODOS' ? 'Todos' : lab.code}
-              <span className="opacity-50">{labCounts[lab.code] ?? 0}</span>
-            </button>
-          )
-        })}
+        ].map(lab => (
+          <FilterPill key={lab.code} active={labFilter === lab.code}
+            color={lab.color} bg={lab.bg} border={lab.border}
+            onClick={() => setLabFilter(lab.code)}>
+            {lab.code === 'TODOS' ? 'Todos' : lab.code}
+            <span className="font-mono text-[9px] opacity-50">{labCounts[lab.code] ?? 0}</span>
+          </FilterPill>
+        ))}
       </div>
 
       {/* Tabela */}

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { LABS, getLabCode } from '@/lib/labs'
 import { AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
+import { FilterPill } from '@/components/ui/FilterPill'
 
 type TipoPendencia =
   | 'certificado'
@@ -191,48 +192,33 @@ export default function PendenciasPage() {
       {/* Filtro por tipo */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
         {TIPOS.map(t => {
-          const count  = contPorTipo[t.key] ?? 0
-          const active = tipoFilter === t.key
+          const count = contPorTipo[t.key] ?? 0
           if (count === 0 && t.key !== 'todos') return null
           return (
-            <button
-              key={t.key}
-              onClick={() => setTipoFilter(t.key as any)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium whitespace-nowrap transition-all duration-150"
-              style={{
-                color:      active ? t.color : 'rgba(255,255,255,0.35)',
-                background: active ? `${t.color}18` : 'transparent',
-                border:     `1px solid ${active ? `${t.color}35` : 'transparent'}`,
-              }}
-            >
+            <FilterPill key={t.key} active={tipoFilter === t.key}
+              color={t.color} bg={`${t.color}18`} border={`${t.color}35`}
+              onClick={() => setTipoFilter(t.key as any)}>
               {t.label}
               <span className="font-mono text-[9px] opacity-60">{count}</span>
-            </button>
+            </FilterPill>
           )
         })}
       </div>
 
       {/* Filtro por lab */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
-        {[{ code: 'TODOS', color: 'rgba(255,255,255,0.5)', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.12)' } as any,
+        {[{ code: 'TODOS', color: '#fff', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.12)' } as any,
           ...LABS,
         ].map(lab => {
-          const active = labFilter === lab.code
-          const count  = pendencias.filter(p => lab.code === 'TODOS' || getLabCode(p.tag) === lab.code).length
+          const count = pendencias.filter(p => lab.code === 'TODOS' || getLabCode(p.tag) === lab.code).length
           if (count === 0 && lab.code !== 'TODOS') return null
           return (
-            <button
-              key={lab.code}
-              onClick={() => setLabFilter(lab.code)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[10px] font-mono whitespace-nowrap transition-all"
-              style={{
-                color:      active ? lab.color : 'rgba(255,255,255,0.25)',
-                background: active ? lab.bg || `${lab.color}15` : 'transparent',
-                border:     `1px solid ${active ? lab.border || `${lab.color}30` : 'transparent'}`,
-              }}
-            >
+            <FilterPill key={lab.code} active={labFilter === lab.code}
+              color={lab.color} bg={lab.bg || `${lab.color}15`} border={lab.border || `${lab.color}30`}
+              onClick={() => setLabFilter(lab.code)}>
               {lab.code === 'TODOS' ? 'Todos' : lab.code}
-            </button>
+              <span className="font-mono text-[9px] opacity-50">{count}</span>
+            </FilterPill>
           )
         })}
       </div>

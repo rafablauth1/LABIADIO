@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import EquipamentoModal from '@/components/modals/EquipamentoModal'
 import { LABS, getLabCode } from '@/lib/labs'
+import { FilterPill } from '@/components/ui/FilterPill'
 
 function calStatus(val: string | null) {
   if (!val) return { label: 'Sem data', cls: 'badge bg-white/5 text-white/30 border-white/10' }
@@ -105,25 +106,17 @@ export default function EquipamentosPage() {
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
         {[{ code: 'TODOS', label: 'Todos', color: '#fff', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.12)' },
           ...LABS.map(l => ({ code: l.code, label: l.code, color: l.color, bg: l.bg, border: l.border })),
-          { code: 'OUTRO', label: 'Outros', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)' },
+          { code: 'OUTRO', label: 'Outros', color: 'rgba(255,255,255,0.5)', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.10)' },
         ].map(tab => {
-          const active = labFilter === tab.code
-          const count  = labCounts[tab.code] ?? 0
+          const count = labCounts[tab.code] ?? 0
           if (count === 0 && tab.code !== 'TODOS') return null
           return (
-            <button
-              key={tab.code}
-              onClick={() => setLabFilter(tab.code)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] font-medium whitespace-nowrap transition-all duration-150"
-              style={{
-                color:      active ? tab.color : 'rgba(255,255,255,0.35)',
-                background: active ? tab.bg    : 'transparent',
-                border:     `1px solid ${active ? tab.border : 'transparent'}`,
-              }}
-            >
+            <FilterPill key={tab.code} active={labFilter === tab.code}
+              color={tab.color} bg={tab.bg} border={tab.border}
+              onClick={() => setLabFilter(tab.code)}>
               {tab.label}
               <span className="font-mono text-[9px] opacity-60">{count}</span>
-            </button>
+            </FilterPill>
           )
         })}
       </div>
