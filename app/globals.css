@@ -20,8 +20,17 @@
 @layer base {
   * { border-color: rgba(255,255,255,0.07); box-sizing: border-box; }
 
+  /* Previne fundo branco padrão do sistema em botões/inputs no Windows */
+  button, input, select, textarea {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+
   body {
-    @apply bg-navy text-white;
+    @apply bg-navy;
+    /* Cor explícita sem variável Tailwind para não vazar em filhos */
+    color: rgba(255,255,255,0.88);
     font-feature-settings: 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
   }
@@ -92,8 +101,10 @@
 
   /* ── INPUTS ─────────────────────────────────────────────── */
   .input {
-    @apply w-full text-white placeholder:text-white/25 text-sm px-3 py-2 rounded-btn
+    @apply w-full placeholder:text-white/25 text-sm px-3 py-2 rounded-btn
            transition-all duration-150 focus:outline-none;
+    /* Cor explícita (não via Tailwind opacity) para não afetar option */
+    color: rgba(255,255,255,0.88);
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.10);
   }
@@ -103,6 +114,14 @@
     background: rgba(255,255,255,0.06);
   }
   select.input { cursor: pointer; }
+
+  /* Fix crítico Windows Chrome: <select> herda color branco do tema escuro
+     mas o dropdown nativo usa fundo branco do sistema → texto invisível */
+  select option {
+    background-color: #141B28;
+    color: rgba(255,255,255,0.85);
+  }
+  select option:disabled { color: rgba(255,255,255,0.30); }
 
   /* ── BADGES ─────────────────────────────────────────────── */
   .badge {
@@ -171,15 +190,21 @@
 
   /* ── TABLE ──────────────────────────────────────────────── */
   .tbl-head th {
-    @apply px-4 py-2.5 text-left font-mono text-[8px] tracking-[2px] text-white/30 uppercase;
-    background: rgba(0,0,0,0.2);
+    @apply px-4 py-2.5 text-left font-mono text-[8px] tracking-[2px] uppercase;
+    /* Cor explícita sem variável Tailwind para não vazar --tw-text-opacity */
+    color: rgba(255,255,255,0.28);
+    background: rgba(0,0,0,0.22);
   }
   .tbl-row {
-    @apply border-b transition-colors duration-100;
-    border-color: rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background 100ms;
   }
-  .tbl-row:hover { background: rgba(255,255,255,0.02); }
-  .tbl-row td { @apply px-4 py-2.5; }
+  .tbl-row:hover { background: rgba(255,255,255,0.025); }
+  .tbl-row td {
+    @apply px-4 py-2.5;
+    /* Cor base explícita para toda célula — evita herança de --tw-text-opacity */
+    color: rgba(255,255,255,0.68);
+  }
 
   /* ── SCANLINE (global, muito sutil) ─────────────────────── */
   .scanline-overlay::after {
