@@ -19,6 +19,7 @@ const LABELS: Record<string, { eyebrow: string; title: string }> = {
   '/dashboard/normas':                 { eyebrow: 'Documentação',  title: 'Docs Normativos' },
   '/dashboard/incerteza':              { eyebrow: 'Análise',       title: 'Incerteza de Medição' },
   '/dashboard/ambiente':               { eyebrow: 'Análise',       title: 'Condições Ambientais' },
+  '/dashboard/pendencias':             { eyebrow: 'Controle',      title: 'Pendências' },
   '/dashboard/relatorio':              { eyebrow: 'Projeto',       title: 'Relatório de Status' },
   '/dashboard/changelog':              { eyebrow: 'Projeto',       title: 'Changelog' },
 }

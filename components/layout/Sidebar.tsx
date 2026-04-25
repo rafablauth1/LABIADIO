@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Search, Cpu, Package, CheckSquare, Play,
   ClipboardList, Award, BookOpen, Monitor, FileText, ScrollText,
   BookMarked, Sigma, Thermometer, BarChart2, GitCommitHorizontal,
-  LogOut, PanelLeftClose, PanelLeftOpen, Settings,
+  LogOut, PanelLeftClose, PanelLeftOpen, Settings, AlertCircle,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -55,8 +55,9 @@ const NAV_GROUPS = [
   },
   {
     items: [
-      { href: '/dashboard/relatorio', icon: BarChart2,           label: 'Relatório de Status' },
-      { href: '/dashboard/changelog', icon: GitCommitHorizontal, label: 'Changelog' },
+      { href: '/dashboard/pendencias', icon: AlertCircle,         label: 'Pendências' },
+      { href: '/dashboard/relatorio',  icon: BarChart2,           label: 'Relatório de Status' },
+      { href: '/dashboard/changelog',  icon: GitCommitHorizontal, label: 'Changelog' },
     ],
   },
 ]
