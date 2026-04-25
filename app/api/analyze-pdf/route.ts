@@ -49,6 +49,23 @@ Retorne APENAS o JSON válido, sem texto adicional.`,
   "ensaio": "tipo de ensaio (ex: EMC - Imunidade ESD)"
 }
 Retorne APENAS o JSON válido, sem texto adicional.`,
+
+  it_chk: `Analise esta Instrução de Trabalho de Checagem Intermediária e extraia as informações em JSON:
+{
+  "cod": "código da IT (ex: IT CHK5184)",
+  "revisao": "revisão (ex: 00)",
+  "data_revisao": "data no formato YYYY-MM-DD",
+  "tag": "TAG do equipamento (ex: 1528EMC)",
+  "descricao": "descrição/tipo do equipamento (ex: Gerador de Sinal)",
+  "equipamentos_aux": "equipamentos auxiliares necessários para a checagem (item 3.1)",
+  "grandezas": ["array com cada grandeza medida separada, ex: Tensão Alternada", "THD"],
+  "self_test": false,
+  "processo": "descrição resumida do processo de checagem (item 3.4, máximo 300 caracteres)",
+  "normas": ["array de normas de referência, ex: IEC 61000-4-13"],
+  "elaborado_por": "nome de quem elaborou",
+  "aprovado_por": "nome de quem aprovou"
+}
+Retorne APENAS o JSON válido, sem texto adicional.`,
 }
 
 export async function POST(req: NextRequest) {

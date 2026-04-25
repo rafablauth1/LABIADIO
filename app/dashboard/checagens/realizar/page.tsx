@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save } from 'lucide-react'
+import { Save, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEquipamentos } from '@/lib/hooks/useEquipamentos'
+import ITCHKModal from '@/components/modals/ITCHKModal'
 
 function fmt(d: string | null) {
   if (!d) return '—'
@@ -15,6 +16,7 @@ export default function RealizarChecagemPage() {
   const supabase = createClient()
   const { equip } = useEquipamentos()
   const [equipId, setEquipId] = useState('')
+  const [openITCHK, setOpenITCHK] = useState(false)
   const [data, setData] = useState('')
   const [tecnico, setTecnico] = useState('')
   const [temp, setTemp] = useState('')
@@ -57,10 +59,15 @@ export default function RealizarChecagemPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <p className="font-mono text-[9px] tracking-[2.5px] text-gold uppercase mb-1">Checagens</p>
-        <h1 className="font-display font-bold text-2xl text-white">Realizar Checagem</h1>
-        <p className="text-white/40 text-sm mt-1">Planilha por Equipamento · Cálculo Automático</p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <p className="font-mono text-[9px] tracking-[2.5px] text-gold uppercase mb-1">Checagens</p>
+          <h1 className="font-display font-bold text-2xl text-white">Realizar Checagem</h1>
+          <p className="text-white/40 text-sm mt-1">Planilha por Equipamento · Cálculo Automático</p>
+        </div>
+        <button className="btn-secondary text-xs" onClick={() => setOpenITCHK(true)}>
+          <FileText size={13} /> Carregar IT CHK
+        </button>
       </div>
 
       <div className="grid grid-cols-[260px_1fr] gap-4 items-start">
@@ -159,6 +166,8 @@ export default function RealizarChecagemPage() {
           </div>
         </div>
       </div>
+
+      <ITCHKModal open={openITCHK} onClose={() => setOpenITCHK(false)} />
     </div>
   )
 }
