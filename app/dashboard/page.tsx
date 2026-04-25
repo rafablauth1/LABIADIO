@@ -95,7 +95,7 @@ export default async function DashboardPage() {
               <Link key={l.code} href={`/dashboard/equipamentos`}
                     className="flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[10px] font-mono font-medium transition-all hover:scale-105"
                     style={{ color: l.color, background: l.bg, border: `1px solid ${l.border}` }}>
-                {l.name}
+                {l.code}
                 <span className="opacity-60">{l.count}</span>
               </Link>
             ))}

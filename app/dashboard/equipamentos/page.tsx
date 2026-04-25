@@ -104,7 +104,7 @@ export default function EquipamentosPage() {
       {/* Lab filter tabs */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
         {[{ code: 'TODOS', label: 'Todos', color: '#fff', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.12)' },
-          ...LABS.map(l => ({ code: l.code, label: l.name, color: l.color, bg: l.bg, border: l.border })),
+          ...LABS.map(l => ({ code: l.code, label: l.code, color: l.color, bg: l.bg, border: l.border })),
           { code: 'OUTRO', label: 'Outros', color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)' },
         ].map(tab => {
           const active = labFilter === tab.code
@@ -181,7 +181,7 @@ export default function EquipamentosPage() {
                       {lab ? (
                         <span className="font-mono text-[9px] px-1.5 py-0.5 rounded"
                               style={{ color: lab.color, background: lab.bg, border: `1px solid ${lab.border}` }}>
-                          {lab.name}
+                          {lab.code}
                         </span>
                       ) : (
                         <span className="text-white/20 font-mono text-[9px]">—</span>

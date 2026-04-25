@@ -214,7 +214,7 @@ export default function PendenciasPage() {
 
       {/* Filtro por lab */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
-        {[{ code: 'TODOS', name: 'Todos os Labs', color: 'rgba(255,255,255,0.5)', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.12)' },
+        {[{ code: 'TODOS', color: 'rgba(255,255,255,0.5)', bg: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.12)' } as any,
           ...LABS,
         ].map(lab => {
           const active = labFilter === lab.code
@@ -227,11 +227,11 @@ export default function PendenciasPage() {
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[10px] font-mono whitespace-nowrap transition-all"
               style={{
                 color:      active ? lab.color : 'rgba(255,255,255,0.25)',
-                background: active ? (lab as any).bg || `${lab.color}15` : 'transparent',
-                border:     `1px solid ${active ? (lab as any).border || `${lab.color}30` : 'transparent'}`,
+                background: active ? lab.bg || `${lab.color}15` : 'transparent',
+                border:     `1px solid ${active ? lab.border || `${lab.color}30` : 'transparent'}`,
               }}
             >
-              {lab.name}
+              {lab.code === 'TODOS' ? 'Todos' : lab.code}
             </button>
           )
         })}
@@ -271,7 +271,7 @@ export default function PendenciasPage() {
                         {lab ? (
                           <span className="font-mono text-[9px] px-1.5 py-0.5 rounded"
                                 style={{ color: lab.color, background: lab.bg, border: `1px solid ${lab.border}` }}>
-                            {lab.name}
+                            {lab.code}
                           </span>
                         ) : <span className="text-white/20">—</span>}
                       </td>
