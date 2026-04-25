@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, Info, Search, X, Trash2 } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Plus, Info, Search, X, Trash2, FileBarChart2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import PlanoCalibracaoModal from '@/components/modals/PlanoCalibracaoModal'
 import Modal from '@/components/ui/Modal'
+import Link from 'next/link'
 
 function fmt(d: string | null) {
   if (!d) return '—'
@@ -78,9 +79,17 @@ export default function CalibracaoPage() {
   const [openNovaGrand, setOpenNovaGrand] = useState(false)
   const [ng, setNg] = useState<Partial<Grandeza>>({ categoria: 'Elétrica' })
 
+  const [equipMap, setEquipMap] = useState<Record<string, any>>({})
+
   async function load() {
-    const { data } = await supabase.from('planos_calibracao').select('*').order('created_at', { ascending: false })
-    setItems(data || [])
+    const [{ data: planos }, { data: equips }] = await Promise.all([
+      supabase.from('planos_calibracao').select('*').order('created_at', { ascending: false }),
+      supabase.from('equipamentos').select('id, tag, cal_per, cal_data, cal_val'),
+    ])
+    setItems(planos || [])
+    const map: Record<string, any> = {}
+    ;(equips || []).forEach(e => { map[e.tag] = e })
+    setEquipMap(map)
   }
 
   async function loadGrandezas() {
@@ -166,40 +175,49 @@ export default function CalibracaoPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-[11.5px]">
               <thead>
-                <tr className="border-b border-white/7 bg-navy">
-                  {['TAG','LABORATÓRIO','PERIOD.','ÚLTIMA','PRÓXIMA','Nº CERT.','GRANDEZAS',''].map(h => (
-                    <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.8px] text-white/35 uppercase">{h}</th>
+                <tr className="tbl-head">
+                  {['TAG','LABORATÓRIO','PERIOD.','ÚLTIMA CAL.','PRÓXIMA CAL.','GRANDEZAS','PONTOS',''].map(h => (
+                    <th key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
-                {items.map((p: any) => (
-                  <tr key={p.id} className="hover:bg-white/3 transition-colors">
-                    <td className="px-4 py-2.5"><span className="tag-chip">{p.tag}</span></td>
-                    <td className="px-4 py-2.5 text-white/60 max-w-[140px] truncate">{p.laboratorio || '—'}</td>
-                    <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{p.periodicidade}m</td>
-                    <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(p.ultima)}</td>
-                    <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(p.proxima)}</td>
-                    <td className="px-4 py-2.5 text-white/40 font-mono text-[10px]">{p.ncert || '—'}</td>
-                    <td className="px-4 py-2.5">
-                      {p.grandezas?.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {p.grandezas.slice(0, 3).map((g: string) => (
-                            <span key={g} className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/8 text-white/50">{g}</span>
-                          ))}
-                          {p.grandezas.length > 3 && (
-                            <span className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-white/30">+{p.grandezas.length - 3}</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-white/20">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <button className="text-white/25 hover:text-teal transition-colors font-mono text-[10px]">Ver →</button>
-                    </td>
-                  </tr>
-                ))}
+              <tbody>
+                {items.map((p: any) => {
+                  const eq = equipMap[p.tag] || {}
+                  const pontos: any[] = Array.isArray(p.pontos) ? p.pontos : []
+                  return (
+                    <tr key={p.id} className="tbl-row group">
+                      <td><span className="tag-chip">{p.tag}</span></td>
+                      <td className="text-white/60 max-w-[140px] truncate">{p.laboratorio || '—'}</td>
+                      <td className="font-mono text-[10px] text-white/50">
+                        {eq.cal_per ? `${eq.cal_per}m` : p.periodicidade ? `${p.periodicidade}m` : '—'}
+                      </td>
+                      <td className="font-mono text-[10px] text-white/50">{fmt(eq.cal_data || p.ultima)}</td>
+                      <td className="font-mono text-[10px] text-white/50">{fmt(eq.cal_val || p.proxima)}</td>
+                      <td>
+                        {p.grandezas?.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {p.grandezas.slice(0, 2).map((g: string) => (
+                              <span key={g} className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/8 text-white/50">{g}</span>
+                            ))}
+                            {p.grandezas.length > 2 && (
+                              <span className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-white/30">+{p.grandezas.length - 2}</span>
+                            )}
+                          </div>
+                        ) : <span className="text-white/20">—</span>}
+                      </td>
+                      <td className="font-mono text-[10px] text-white/40">
+                        {pontos.length > 0 ? `${pontos.length} pt${pontos.length > 1 ? 's' : ''}` : '—'}
+                      </td>
+                      <td>
+                        <Link href={`/dashboard/calibracao/${p.id}`}
+                              className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-white/30 hover:text-gold transition-all font-mono text-[9px]">
+                          <FileBarChart2 size={11} /> Relatório
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
                 {items.length === 0 && (
                   <tr><td colSpan={8} className="px-4 py-12 text-center text-white/25 italic text-sm">Nenhum plano cadastrado ainda.</td></tr>
                 )}
