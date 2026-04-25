@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
-
-const client = new Anthropic()
+import { analyzeDocument } from '@/lib/ai'
 
 const PROMPTS: Record<string, string> = {
   cert: `Analise este certificado de calibração e extraia as seguintes informações em JSON:
@@ -69,9 +67,18 @@ Retorne APENAS o JSON válido, sem texto adicional.`,
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const provider = process.env.AI_PROVIDER || 'anthropic'
+
+  // Validação de variáveis de ambiente por provedor
+  const missing: string[] = []
+  if (provider === 'anthropic'    && !process.env.ANTHROPIC_API_KEY)    missing.push('ANTHROPIC_API_KEY')
+  if (provider === 'azure-openai' && !process.env.AZURE_OPENAI_KEY)     missing.push('AZURE_OPENAI_KEY')
+  if (provider === 'azure-openai' && !process.env.AZURE_OPENAI_ENDPOINT) missing.push('AZURE_OPENAI_ENDPOINT')
+  if (provider === 'gemini'       && !process.env.GOOGLE_API_KEY)        missing.push('GOOGLE_API_KEY')
+
+  if (missing.length > 0) {
     return NextResponse.json(
-      { error: 'ANTHROPIC_API_KEY não configurada no servidor.' },
+      { error: `Variáveis de ambiente ausentes para o provedor "${provider}": ${missing.join(', ')}` },
       { status: 500 }
     )
   }
@@ -91,41 +98,14 @@ export async function POST(req: NextRequest) {
     }
 
     const bytes = await file.arrayBuffer()
-    const base64 = Buffer.from(bytes).toString('base64')
-
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: base64,
-              },
-            } as any,
-            {
-              type: 'text',
-              text: prompt,
-            },
-          ],
-        },
-      ],
-    })
-
-    const text = response.content[0].type === 'text' ? response.content[0].text.trim() : ''
+    const text  = await analyzeDocument(bytes, prompt)
 
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
       return NextResponse.json({ error: 'Não foi possível extrair informações do PDF.' }, { status: 422 })
     }
 
-    const extracted = JSON.parse(jsonMatch[0])
-    return NextResponse.json(extracted)
+    return NextResponse.json(JSON.parse(jsonMatch[0]))
   } catch (err: any) {
     console.error('[analyze-pdf]', err)
     return NextResponse.json(
