@@ -38,7 +38,7 @@ export function NormasGrid({ value, onChange }: {
   onChange: (v: string[]) => void
 }) {
   const normas = [
-    'IEC 61000-4-2', 'IEC 61000-4-4', 'IEC 61000-4-5', 'IEC 61000-4-6',
+    'IEC 61000-4-2', 'IEC 61000-4-3', 'IEC 61000-4-4', 'IEC 61000-4-5', 'IEC 61000-4-6',
     'IEC 61000-4-11', 'IEC 61000-4-19', 'CISPR 15', 'IEC 61000-3-2',
   ]
   return (

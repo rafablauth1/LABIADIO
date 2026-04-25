@@ -34,20 +34,23 @@ export default function EquipamentoModal({ open, onClose }: Props) {
   }
 
   async function save() {
-    if (!f.tag || !f.descricao || !f.tipo) {
-      alert('Preencha TAG, descrição e tipo.')
+    const faltando = [!f.tag && 'TAG', !f.descricao && 'Descrição / Modelo', !f.tipo && 'Tipo Metrológico'].filter(Boolean)
+    if (faltando.length) {
+      alert('Campo(s) obrigatório(s) não preenchido(s):\n• ' + faltando.join('\n• '))
       return
     }
     setSaving(true)
+    const { data: lab_id } = await supabase.rpc('get_user_lab_id')
     const { error } = await supabase.from('equipamentos').insert({
+      lab_id,
       tag: f.tag.toUpperCase(),
       descricao: f.descricao,
       tipo: f.tipo,
       fabricante: f.fabricante || null,
       serie: f.serie || null,
       patrimonio: f.patrimonio || null,
-      localizacao: f.localizacao || null,
-      cal_dt: f.cal_dt || null,
+      local: f.localizacao || null,
+      cal_data: f.cal_dt || null,
       cal_val: f.cal_val || null,
       cal_per: parseInt(f.cal_per),
       chk_per: parseInt(f.chk_per),

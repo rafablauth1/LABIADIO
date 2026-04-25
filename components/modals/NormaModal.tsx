@@ -1,23 +1,77 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Modal from '@/components/ui/Modal'
 import { FormField, FormSection, FormGrid } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Sparkles, Paperclip, Loader2 } from 'lucide-react'
+import { Sparkles, Paperclip, Loader2, FileText, Trash2, ExternalLink, Plus } from 'lucide-react'
 
-interface Props { open: boolean; onClose: () => void }
+interface PdfEntry { nome: string; path: string }
 
-export default function NormaModal({ open, onClose }: Props) {
+interface NormaItem {
+  id?: string
+  norma: string
+  versao?: string
+  titulo: string
+  ensaio?: string
+  obs?: string
+  pdf_path?: string
+  pdfs?: PdfEntry[]
+}
+
+interface Props {
+  open: boolean
+  onClose: () => void
+  editItem?: NormaItem | null
+}
+
+export default function NormaModal({ open, onClose, editItem }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [pdfs, setPdfs] = useState<PdfEntry[]>([])
+  const [pdfUrls, setPdfUrls] = useState<Record<string, string>>({})
   const [f, setF] = useState({ norma: '', ver: '', titulo: '', ensaio: '', obs: '' })
+
+  const isEdit = !!editItem?.id
+
+  useEffect(() => {
+    if (!open) return
+    if (editItem) {
+      setF({
+        norma: editItem.norma || '',
+        ver: editItem.versao || '',
+        titulo: editItem.titulo || '',
+        ensaio: editItem.ensaio || '',
+        obs: editItem.obs || '',
+      })
+      const existing: PdfEntry[] = editItem.pdfs || (editItem.pdf_path ? [{ nome: editItem.norma + '.pdf', path: editItem.pdf_path }] : [])
+      setPdfs(existing)
+      loadPdfUrls(existing)
+    } else {
+      setF({ norma: '', ver: '', titulo: '', ensaio: '', obs: '' })
+      setPdfs([])
+      setPdfUrls({})
+    }
+    setFile(null)
+    setFileName(null)
+  }, [open, editItem])
+
+  async function loadPdfUrls(list: PdfEntry[]) {
+    const urls: Record<string, string> = {}
+    for (const p of list) {
+      if (!p.path) continue
+      const { data } = await supabase.storage.from('docs').createSignedUrl(p.path, 3600)
+      if (data?.signedUrl) urls[p.path] = data.signedUrl
+    }
+    setPdfUrls(urls)
+  }
 
   function set(k: keyof typeof f, v: string) { setF(p => ({ ...p, [k]: v })) }
 
@@ -50,32 +104,125 @@ export default function NormaModal({ open, onClose }: Props) {
     }
   }
 
+  async function uploadPdf(): Promise<PdfEntry | null> {
+    if (!file) return null
+    setUploading(true)
+    try {
+      const code = f.norma.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')
+      const ts = Date.now()
+      const path = `normas/${code}/${ts}-${file.name}`
+      const { error } = await supabase.storage.from('docs').upload(path, file, { upsert: true })
+      if (error) { alert('Erro ao fazer upload: ' + error.message); return null }
+      return { nome: file.name, path }
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function removePdf(idx: number) {
+    const target = pdfs[idx]
+    if (target?.path) {
+      await supabase.storage.from('docs').remove([target.path])
+    }
+    const updated = pdfs.filter((_, i) => i !== idx)
+    setPdfs(updated)
+    if (isEdit && editItem?.id) {
+      await supabase.from('normas').update({ pdfs: updated }).eq('id', editItem.id)
+    }
+  }
+
   async function save() {
     if (!f.norma || !f.titulo) { alert('Preencha norma e título.'); return }
     setSaving(true)
-    const { error } = await supabase.from('normas').insert({
-      norma: f.norma, versao: f.ver || null, titulo: f.titulo, ensaio: f.ensaio || null, obs: f.obs || null,
-    })
-    setSaving(false)
-    if (error) { alert('Erro: ' + error.message); return }
-    onClose(); router.refresh()
+    try {
+      let newPdfs = [...pdfs]
+      if (file) {
+        const entry = await uploadPdf()
+        if (entry) {
+          newPdfs = [...newPdfs, entry]
+          setPdfs(newPdfs)
+        }
+      }
+
+      const payload = {
+        norma: f.norma,
+        versao: f.ver || null,
+        titulo: f.titulo,
+        ensaio: f.ensaio || null,
+        obs: f.obs || null,
+        pdfs: newPdfs,
+        pdf_path: newPdfs[0]?.path || null,
+      }
+
+      if (isEdit && editItem?.id) {
+        const { error } = await supabase.from('normas').update(payload).eq('id', editItem.id)
+        if (error) { alert('Erro: ' + error.message); return }
+      } else {
+        const { error } = await supabase.from('normas').insert(payload)
+        if (error) { alert('Erro: ' + error.message); return }
+      }
+      onClose()
+      router.refresh()
+    } finally {
+      setSaving(false)
+    }
   }
 
   const inp = 'input'
 
   return (
-    <Modal open={open} onClose={onClose} title="Documento Normativo"
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? `Editar Norma — ${editItem?.norma}` : 'Documento Normativo'}
+      size="lg"
       footer={
         <>
           <button className="btn-secondary text-xs" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary text-xs" onClick={save} disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar'}
+          <button className="btn-primary text-xs" onClick={save} disabled={saving || uploading}>
+            {saving || uploading ? 'Salvando...' : isEdit ? 'Atualizar' : 'Salvar'}
           </button>
         </>
       }
     >
       <FormGrid>
-        <FormSection>PDF da Norma</FormSection>
+        {/* PDFs existentes */}
+        {pdfs.length > 0 && (
+          <>
+            <FormSection>PDFs Anexados</FormSection>
+            <div className="col-span-2 space-y-2">
+              {pdfs.map((p, i) => (
+                <div key={i} className="flex items-center justify-between bg-white/4 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <FileText size={13} className="text-teal flex-shrink-0" />
+                    <span className="text-[11px] text-white/70 truncate max-w-[280px]">{p.nome}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {pdfUrls[p.path] && (
+                      <a
+                        href={pdfUrls[p.path]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal hover:text-white transition-colors"
+                      >
+                        <ExternalLink size={13} />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => removePdf(i)}
+                      className="text-white/25 hover:text-danger transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Upload novo PDF */}
+        <FormSection>{pdfs.length > 0 ? 'Adicionar Outro PDF' : 'PDF da Norma'}</FormSection>
         <div className="col-span-2 flex flex-col gap-2">
           <div
             className="border border-dashed border-white/15 rounded-lg p-4 text-center
@@ -84,7 +231,10 @@ export default function NormaModal({ open, onClose }: Props) {
           >
             <Paperclip size={16} className="mx-auto mb-1 text-white/30" />
             <p className="text-[11px] text-white/40">
-              {fileName ? <span className="text-white/70">{fileName}</span> : 'Clique para anexar PDF'}
+              {fileName
+                ? <span className="text-white/70">{fileName}</span>
+                : <><Plus size={11} className="inline mr-1" />Clique para anexar PDF</>
+              }
             </p>
             <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handleFile} />
           </div>
@@ -102,6 +252,7 @@ export default function NormaModal({ open, onClose }: Props) {
           </button>
         </div>
 
+        {/* Dados da norma */}
         <FormSection>Dados da Norma</FormSection>
         <FormField label="Norma * (ex: IEC 61000-4-2)">
           <input className={inp} value={f.norma} onChange={e => set('norma', e.target.value)} placeholder="Nº da norma" />

@@ -6,6 +6,7 @@ import { FormField, FormSection, FormGrid } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Sparkles, Paperclip, Loader2 } from 'lucide-react'
+import { useEquipamentos } from '@/lib/hooks/useEquipamentos'
 
 interface Props { open: boolean; onClose: () => void }
 
@@ -13,11 +14,12 @@ export default function CertificadoModal({ open, onClose }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const fileRef = useRef<HTMLInputElement>(null)
+  const { equip } = useEquipamentos()
   const [saving, setSaving] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
-  const [f, setF] = useState({ num: '', tag: '', lab: '', emissao: '', acred: '', obs: '' })
+  const [f, setF] = useState({ num: '', equip_id: '', lab: '', emissao: '', acred: '', obs: '' })
 
   function set(k: keyof typeof f, v: string) { setF(p => ({ ...p, [k]: v })) }
 
@@ -51,11 +53,15 @@ export default function CertificadoModal({ open, onClose }: Props) {
   }
 
   async function save() {
-    if (!f.num || !f.tag) { alert('Preencha Nº do certificado e TAG.'); return }
+    if (!f.num || !f.equip_id) { alert('Preencha Nº do certificado e selecione o equipamento.'); return }
     setSaving(true)
     const { error } = await supabase.from('certificados').insert({
-      numero: f.num, equip_tag: f.tag.toUpperCase(), lab: f.lab || null,
-      emissao: f.emissao || null, acreditacao: f.acred || null, obs: f.obs || null,
+      numero: f.num,
+      equip_id: f.equip_id,
+      laboratorio: f.lab || null,
+      emissao: f.emissao || null,
+      acreditacao: f.acred || null,
+      obs: f.obs || null,
     })
     setSaving(false)
     if (error) { alert('Erro: ' + error.message); return }
@@ -63,6 +69,7 @@ export default function CertificadoModal({ open, onClose }: Props) {
   }
 
   const inp = 'input'
+  const sel = 'input w-full bg-navy border border-white/10 rounded-btn text-white text-sm px-3 py-2 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 transition-colors'
 
   return (
     <Modal open={open} onClose={onClose} title="Registrar Certificado"
@@ -76,7 +83,6 @@ export default function CertificadoModal({ open, onClose }: Props) {
       }
     >
       <FormGrid>
-        {/* PDF upload + IA */}
         <FormSection>PDF do Certificado</FormSection>
         <div className="col-span-2 flex flex-col gap-2">
           <div
@@ -104,13 +110,17 @@ export default function CertificadoModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        {/* Campos */}
         <FormSection>Dados do Certificado</FormSection>
         <FormField label="Nº Certificado *">
           <input className={inp} value={f.num} onChange={e => set('num', e.target.value)} placeholder="Nº cert." />
         </FormField>
-        <FormField label="TAG *">
-          <input className={inp} value={f.tag} onChange={e => set('tag', e.target.value)} placeholder="TAG do equipamento" />
+        <FormField label="Equipamento *">
+          <select className={sel} value={f.equip_id} onChange={e => set('equip_id', e.target.value)}>
+            <option value="">Selecionar equipamento...</option>
+            {equip.map(e => (
+              <option key={e.id} value={e.id}>{e.tag} — {e.descricao}</option>
+            ))}
+          </select>
         </FormField>
         <FormField label="Emitido por">
           <input className={inp} value={f.lab} onChange={e => set('lab', e.target.value)} placeholder="Lab acreditado" />

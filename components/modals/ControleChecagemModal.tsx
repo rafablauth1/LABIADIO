@@ -5,23 +5,27 @@ import Modal from '@/components/ui/Modal'
 import { FormField, FormGrid } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useEquipamentos } from '@/lib/hooks/useEquipamentos'
 
 interface Props { open: boolean; onClose: () => void }
 
-const NORMAS = ['IEC 61000-4-2','IEC 61000-4-4','IEC 61000-4-5','IEC 61000-4-6','IEC 61000-4-11','IEC 61000-4-19','Geral']
+const NORMAS = ['IEC 61000-4-2','IEC 61000-4-3','IEC 61000-4-4','IEC 61000-4-5','IEC 61000-4-6','IEC 61000-4-11','IEC 61000-4-19','Geral']
 
 export default function ControleChecagemModal({ open, onClose }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const { equip } = useEquipamentos()
   const [saving, setSaving] = useState(false)
-  const [f, setF] = useState({ tag: '', norma: 'IEC 61000-4-2', per: '6', resp: '', prox: '', obs: '' })
+  const [f, setF] = useState({ equip_id: '', norma: 'IEC 61000-4-2', per: '6', resp: '', prox: '', obs: '' })
   function set(k: keyof typeof f, v: string) { setF(p => ({ ...p, [k]: v })) }
 
   async function save() {
-    if (!f.tag) { alert('Selecione a TAG.'); return }
+    if (!f.equip_id) { alert('Selecione o equipamento.'); return }
+    const equipSel = equip.find(e => e.id === f.equip_id)
     setSaving(true)
     const { error } = await supabase.from('controle_checagens').insert({
-      tag: f.tag.toUpperCase(), norma: f.norma, periodicidade: parseInt(f.per),
+      equip_id: f.equip_id, tag: equipSel?.tag || '',
+      norma: f.norma, periodicidade: parseInt(f.per),
       responsavel: f.resp || null, proxima: f.prox || null, obs: f.obs || null,
     })
     setSaving(false)
@@ -44,8 +48,11 @@ export default function ControleChecagemModal({ open, onClose }: Props) {
       }
     >
       <FormGrid>
-        <FormField label="TAG *">
-          <input className={inp} value={f.tag} onChange={e => set('tag', e.target.value)} placeholder="TAG do equipamento" />
+        <FormField label="Equipamento *" full>
+          <select className={sel} value={f.equip_id} onChange={e => set('equip_id', e.target.value)}>
+            <option value="">Selecionar equipamento...</option>
+            {equip.map(e => <option key={e.id} value={e.id}>{e.tag} — {e.descricao}</option>)}
+          </select>
         </FormField>
         <FormField label="Norma">
           <select className={sel} value={f.norma} onChange={e => set('norma', e.target.value)}>

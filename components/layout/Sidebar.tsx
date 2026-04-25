@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Search, Cpu, Package, CheckSquare, Play,
   ClipboardList, Award, BookOpen, Monitor, FileText, ScrollText,
   BookMarked, Sigma, Thermometer, Settings, LogOut,
-  ChevronRight, AlertCircle
+  ChevronRight, AlertCircle, BarChart2, GitCommitHorizontal
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -60,6 +60,13 @@ const NAV = [
     items: [
       { href: '/dashboard/incerteza', icon: Sigma,      label: 'Incerteza de Medição' },
       { href: '/dashboard/ambiente',  icon: Thermometer, label: 'Condições Ambientais' },
+    ],
+  },
+  {
+    section: 'PROJETO',
+    items: [
+      { href: '/dashboard/relatorio', icon: BarChart2, label: 'Relatório de Status' },
+      { href: '/dashboard/changelog', icon: GitCommitHorizontal, label: 'Changelog' },
     ],
   },
 ]

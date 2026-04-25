@@ -7,7 +7,8 @@ import CertificadoModal from '@/components/modals/CertificadoModal'
 
 function fmt(d: string | null) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('pt-BR')
+  const s = d.slice(0, 10)
+  return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4)
 }
 
 export default function CertificadosPage() {
