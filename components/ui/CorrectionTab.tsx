@@ -196,9 +196,16 @@ export default function CorrectionTab({ pontos, grandeza, unidade }: Props) {
       {/* ── Tabela de calibração ─────────────────────── */}
       {pontos.length > 0 ? (
         <div>
-          <p className="font-mono text-[8px] tracking-[2px] text-gold uppercase mb-2">
-            {grandeza || 'Tabela de Resultados'}{uni ? ` — ${uni}` : ''}
-          </p>
+          <div className="flex items-baseline gap-3 mb-2">
+            <p className="font-mono text-[8px] tracking-[2px] text-gold uppercase">
+              {grandeza || 'Tabela de Resultados'}{uni ? ` — ${uni}` : ''}
+            </p>
+            {!multiRange && faixas[0] && (
+              <span className="font-mono text-[9px] text-gold/50 border border-gold/15 bg-gold/5 px-2 py-0.5 rounded">
+                {faixas[0]}
+              </span>
+            )}
+          </div>
 
           <div className="overflow-x-auto rounded-lg border border-white/8">
             <table className="w-full text-[10.5px]">
@@ -305,7 +312,19 @@ export default function CorrectionTab({ pontos, grandeza, unidade }: Props) {
             </div>
 
             {rSimple && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {/* Configuração ativa */}
+                {(filtFaixa !== 'todas' || filtFase !== 'todas' || (faixas.length === 1 && faixas[0])) && (
+                  <div className="bg-gold/5 border border-gold/15 rounded-lg px-3 py-2 text-center">
+                    <p className="font-mono text-[7.5px] text-white/30 uppercase tracking-wider mb-0.5">Configuração</p>
+                    <p className="font-mono text-[10.5px] text-gold/80 font-semibold leading-tight">
+                      {filtFaixa !== 'todas' ? filtFaixa : faixas[0] || '—'}
+                      {filtFase !== 'todas' && (
+                        <span className="block text-[9px] text-gold/50">{filtFase}</span>
+                      )}
+                    </p>
+                  </div>
+                )}
                 <div className="bg-navy rounded-lg px-3 py-2 text-center min-w-[90px]">
                   <p className="font-mono text-[7.5px] text-white/30 uppercase tracking-wider mb-0.5">Erro</p>
                   <p className="font-mono text-sm text-amber-400 font-semibold">

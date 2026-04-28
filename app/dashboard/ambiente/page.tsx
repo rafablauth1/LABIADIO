@@ -31,7 +31,7 @@ interface AmbReg {
   correcoes?: { temp_corr_max?: number; temp_corr_min?: number; umid_corr?: number; cert_num?: string }
 }
 
-interface CalPt { medido: number; correcao: number }
+interface CalPt { medido: number; correcao: number; faixa?: string }
 interface CalData {
   tempPontos: CalPt[]
   umidPontos: CalPt[]
@@ -52,7 +52,7 @@ function outOfRange(val: number | undefined, min: number | undefined, max: numbe
   return false
 }
 
-function interpolateCorr(x: number, pontos: CalPt[]): number {
+function interpolatePts(x: number, pontos: CalPt[]): number {
   if (!pontos.length) return 0
   const sorted = [...pontos].sort((a, b) => a.medido - b.medido)
   if (x <= sorted[0].medido) return sorted[0].correcao
@@ -65,6 +65,21 @@ function interpolateCorr(x: number, pontos: CalPt[]): number {
     }
   }
   return 0
+}
+
+// Selects the faixa whose medido range covers x; falls back to all points
+function interpolateCorr(x: number, pontos: CalPt[]): { correcao: number; faixa?: string } {
+  if (!pontos.length) return { correcao: 0 }
+  const faixas = [...new Set(pontos.filter(p => p.faixa).map(p => p.faixa!))]
+  for (const f of faixas) {
+    const pts = pontos.filter(p => p.faixa === f)
+    const sorted = [...pts].sort((a, b) => a.medido - b.medido)
+    if (x >= sorted[0].medido - 0.01 && x <= sorted[sorted.length - 1].medido + 0.01) {
+      return { correcao: interpolatePts(x, pts), faixa: f }
+    }
+  }
+  // fallback: all points, report faixa only if there's exactly one
+  return { correcao: interpolatePts(x, pontos), faixa: faixas.length === 1 ? faixas[0] : undefined }
 }
 
 function fmtCorr(v: number) {
@@ -144,6 +159,7 @@ export default function AmbientePage() {
       const pts: CalPt[] = ia.pontos.map((p: any) => ({
         medido:   Number(p.medido),
         correcao: Number(p.correcao),
+        faixa:    p.faixa || undefined,
       }))
 
       const isUmid = g.includes('umid') || g.includes('humid') || g.includes('%rh')
@@ -191,9 +207,13 @@ export default function AmbientePage() {
   const hasTempCal = (calData?.tempPontos?.length ?? 0) > 0
   const hasUmidCal = (calData?.umidPontos?.length ?? 0) > 0
 
-  const corrTempMax = rawTempMax != null && hasTempCal ? interpolateCorr(rawTempMax, calData!.tempPontos) : 0
-  const corrTempMin = rawTempMin != null && hasTempCal ? interpolateCorr(rawTempMin, calData!.tempPontos) : 0
-  const corrUmidade = rawUmidade != null && hasUmidCal ? interpolateCorr(rawUmidade, calData!.umidPontos) : 0
+  const rTempMax = rawTempMax != null && hasTempCal ? interpolateCorr(rawTempMax, calData!.tempPontos) : { correcao: 0 }
+  const rTempMin = rawTempMin != null && hasTempCal ? interpolateCorr(rawTempMin, calData!.tempPontos) : { correcao: 0 }
+  const rUmidade = rawUmidade != null && hasUmidCal ? interpolateCorr(rawUmidade, calData!.umidPontos) : { correcao: 0 }
+
+  const corrTempMax = rTempMax.correcao
+  const corrTempMin = rTempMin.correcao
+  const corrUmidade = rUmidade.correcao
 
   // ── Modal Registro ──────────────────────────────────────────────
   function openRegistroDia(dia: number) {
@@ -229,24 +249,26 @@ export default function AmbientePage() {
       umidade:  parseFloat(regF.umidade),
     }
 
-    const corrMax  = hasTempCal ? interpolateCorr(raw.temp_max, calData!.tempPontos) : 0
-    const corrMin  = hasTempCal ? interpolateCorr(raw.temp_min, calData!.tempPontos) : 0
-    const corrUmid = hasUmidCal ? interpolateCorr(raw.umidade,  calData!.umidPontos) : 0
+    const rMax  = hasTempCal ? interpolateCorr(raw.temp_max, calData!.tempPontos) : { correcao: 0 }
+    const rMin  = hasTempCal ? interpolateCorr(raw.temp_min, calData!.tempPontos) : { correcao: 0 }
+    const rUmid = hasUmidCal ? interpolateCorr(raw.umidade,  calData!.umidPontos) : { correcao: 0 }
 
     const correcoes = (hasTempCal || hasUmidCal) ? {
-      temp_corr_max: corrMax,
-      temp_corr_min: corrMin,
-      umid_corr:     corrUmid,
-      cert_num:      calData?.certNum,
+      temp_corr_max:  rMax.correcao,
+      temp_corr_min:  rMin.correcao,
+      umid_corr:      rUmid.correcao,
+      faixa_temp:     rMax.faixa,
+      faixa_umid:     rUmid.faixa,
+      cert_num:       calData?.certNum,
     } : null
 
     const payload = {
       lab_id:        labId,
       instalacao_id: salaFiltro,
       data:          dataStr,
-      temp_max:  Number((raw.temp_max + corrMax).toFixed(2)),
-      temp_min:  Number((raw.temp_min + corrMin).toFixed(2)),
-      umidade:   Number((raw.umidade  + corrUmid).toFixed(2)),
+      temp_max:  Number((raw.temp_max + rMax.correcao).toFixed(2)),
+      temp_min:  Number((raw.temp_min + rMin.correcao).toFixed(2)),
+      umidade:   Number((raw.umidade  + rUmid.correcao).toFixed(2)),
       pressao:   regF.pressao ? parseFloat(regF.pressao) : null,
       tecnico:   regF.tecnico || null,
       obs:       regF.obs     || null,
@@ -696,10 +718,17 @@ export default function AmbientePage() {
             <input className={inp} type="number" step="0.1" value={regF.temp_max}
               onChange={e => setRegF(p => ({ ...p, temp_max: e.target.value }))} placeholder="25.0" />
             {rawTempMax != null && hasTempCal && (
-              <p className="text-[9.5px] font-mono mt-1 flex items-center gap-1 text-teal/70">
-                <ArrowUpDown size={8} />
-                corr. {fmtCorr(corrTempMax) ?? '0'} → <strong>{(rawTempMax + corrTempMax).toFixed(2)}°C</strong>
-              </p>
+              <div className="mt-1 space-y-0.5">
+                {rTempMax.faixa && (
+                  <p className="text-[8.5px] font-mono text-white/30">
+                    conf. <span className="text-gold/60">{rTempMax.faixa}</span>
+                  </p>
+                )}
+                <p className="text-[9.5px] font-mono flex items-center gap-1 text-teal/70">
+                  <ArrowUpDown size={8} />
+                  corr. {fmtCorr(corrTempMax) ?? '0'} → <strong>{(rawTempMax + corrTempMax).toFixed(2)}°C</strong>
+                </p>
+              </div>
             )}
           </div>
 
@@ -709,10 +738,17 @@ export default function AmbientePage() {
             <input className={inp} type="number" step="0.1" value={regF.temp_min}
               onChange={e => setRegF(p => ({ ...p, temp_min: e.target.value }))} placeholder="18.0" />
             {rawTempMin != null && hasTempCal && (
-              <p className="text-[9.5px] font-mono mt-1 flex items-center gap-1 text-teal/70">
-                <ArrowUpDown size={8} />
-                corr. {fmtCorr(corrTempMin) ?? '0'} → <strong>{(rawTempMin + corrTempMin).toFixed(2)}°C</strong>
-              </p>
+              <div className="mt-1 space-y-0.5">
+                {rTempMin.faixa && (
+                  <p className="text-[8.5px] font-mono text-white/30">
+                    conf. <span className="text-gold/60">{rTempMin.faixa}</span>
+                  </p>
+                )}
+                <p className="text-[9.5px] font-mono flex items-center gap-1 text-teal/70">
+                  <ArrowUpDown size={8} />
+                  corr. {fmtCorr(corrTempMin) ?? '0'} → <strong>{(rawTempMin + corrTempMin).toFixed(2)}°C</strong>
+                </p>
+              </div>
             )}
           </div>
 
@@ -722,10 +758,17 @@ export default function AmbientePage() {
             <input className={inp} type="number" step="0.1" value={regF.umidade}
               onChange={e => setRegF(p => ({ ...p, umidade: e.target.value }))} placeholder="55.0" />
             {rawUmidade != null && hasUmidCal && (
-              <p className="text-[9.5px] font-mono mt-1 flex items-center gap-1 text-teal/70">
-                <ArrowUpDown size={8} />
-                corr. {fmtCorr(corrUmidade) ?? '0'} → <strong>{(rawUmidade + corrUmidade).toFixed(2)}%</strong>
-              </p>
+              <div className="mt-1 space-y-0.5">
+                {rUmidade.faixa && (
+                  <p className="text-[8.5px] font-mono text-white/30">
+                    conf. <span className="text-gold/60">{rUmidade.faixa}</span>
+                  </p>
+                )}
+                <p className="text-[9.5px] font-mono flex items-center gap-1 text-teal/70">
+                  <ArrowUpDown size={8} />
+                  corr. {fmtCorr(corrUmidade) ?? '0'} → <strong>{(rawUmidade + corrUmidade).toFixed(2)}%</strong>
+                </p>
+              </div>
             )}
           </div>
 
