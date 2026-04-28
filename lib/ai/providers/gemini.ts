@@ -14,7 +14,7 @@ export async function analyzeWithGemini(pdfBase64: string, prompt: string): Prom
     generationConfig: { maxOutputTokens: 8192, temperature: 0.1 },
   })
 
-  const MAX_RETRIES = 3
+  const MAX_RETRIES = 4
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
 
@@ -28,18 +28,25 @@ export async function analyzeWithGemini(pdfBase64: string, prompt: string): Prom
     }
 
     const err = await res.json().catch(() => ({}))
-    const isRetryable = res.status === 503 || res.status === 429
 
-    if (isRetryable && attempt < MAX_RETRIES - 1) {
-      await sleep(2000 * (attempt + 1))
+    if (res.status === 429 && attempt < MAX_RETRIES - 1) {
+      // free tier: respeita o retry-after ou espera escalonado (15s, 30s, 60s)
+      const retryAfter = Number(res.headers.get('retry-after') || 0)
+      const wait = retryAfter > 0 ? retryAfter * 1000 : 15000 * (attempt + 1)
+      await sleep(wait)
+      continue
+    }
+
+    if (res.status === 503 && attempt < MAX_RETRIES - 1) {
+      await sleep(3000 * (attempt + 1))
       continue
     }
 
     const msg = err?.error?.message || res.statusText
-    if (res.status === 503) throw new Error(`Gemini indisponível (503): serviço sobrecarregado. Tente novamente em instantes.`)
-    if (res.status === 429) throw new Error(`Gemini: limite de requisições atingido (429). Aguarde alguns segundos.`)
+    if (res.status === 503) throw new Error(`Gemini indisponível. Tente novamente em instantes.`)
+    if (res.status === 429) throw new Error(`Gemini: muitas requisições. Aguarde 1 minuto e tente novamente (limite do plano gratuito).`)
     throw new Error(`Gemini API error ${res.status}: ${msg}`)
   }
 
-  throw new Error('Gemini: máximo de tentativas atingido. Tente novamente.')
+  throw new Error('Gemini: limite de requisições atingido. Aguarde 1 minuto e tente novamente.')
 }
