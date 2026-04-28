@@ -8,8 +8,8 @@ import ImportarChecagemModal from '@/components/modals/ImportarChecagemModal'
 
 export default function ProcedimentosPage() {
   const supabase = createClient()
-  const [items, setItems]       = useState<any[]>([])
-  const [open, setOpen]         = useState(false)
+  const [items, setItems]         = useState<any[]>([])
+  const [open, setOpen]           = useState(false)
   const [openExcel, setOpenExcel] = useState(false)
 
   async function load() {
@@ -21,10 +21,10 @@ export default function ProcedimentosPage() {
 
   return (
     <div className="space-y-4">
-      <div className="page-header">
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <p className="page-eyebrow">Documentação</p>
-          <h1 className="page-title">Procedimentos de Checagens</h1>
+          <p className="font-mono text-[9px] tracking-[2.5px] text-gold uppercase mb-1">Documentação</p>
+          <h1 className="font-display font-bold text-2xl text-white">Procedimentos de Checagens</h1>
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary text-xs" onClick={() => setOpenExcel(true)}>
@@ -40,22 +40,22 @@ export default function ProcedimentosPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-[11.5px]">
             <thead>
-              <tr className="tbl-head">
-                {['CÓDIGO','NORMAS BASE','PADRÕES','DESCRIÇÃO','VERSÃO','APROVADO POR',''].map(h => (
-                  <th key={h}>{h}</th>
+              <tr className="border-b border-white/7 bg-navy">
+                {['CÓDIGO', 'NORMAS BASE', 'PADRÕES', 'DESCRIÇÃO', 'VERSÃO', 'APROVADO POR', ''].map(h => (
+                  <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.8px] text-white/35 uppercase">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-white/5">
               {items.map((p: any) => (
-                <tr key={p.id} className="tbl-row group">
-                  <td className="font-mono text-[10px] text-white/70">{p.codigo}</td>
-                  <td className="text-white/50 text-[10px] max-w-[140px]">{(p.normas || []).join(', ') || '—'}</td>
-                  <td className="text-white/40 text-[10px]">{p.padroes || '—'}</td>
-                  <td className="text-white/80 max-w-[200px] truncate">{p.descricao}</td>
-                  <td className="font-mono text-[10px] text-white/50">{p.versao || '—'}</td>
-                  <td className="text-white/40 text-[10px]">{p.aprovado_por || '—'}</td>
-                  <td>
+                <tr key={p.id} className="hover:bg-white/3 transition-colors group">
+                  <td className="px-4 py-2.5 font-mono text-[10px] text-white/70">{p.codigo}</td>
+                  <td className="px-4 py-2.5 text-white/50 text-[10px] max-w-[140px]">{(p.normas || []).join(', ') || '—'}</td>
+                  <td className="px-4 py-2.5 text-white/40 text-[10px]">{p.padroes || '—'}</td>
+                  <td className="px-4 py-2.5 text-white/80 max-w-[200px] truncate">{p.descricao}</td>
+                  <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{p.versao || '—'}</td>
+                  <td className="px-4 py-2.5 text-white/40 text-[10px]">{p.aprovado_por || '—'}</td>
+                  <td className="px-4 py-2.5">
                     <button className="opacity-0 group-hover:opacity-100 text-white/25 hover:text-teal transition-all font-mono text-[10px]">
                       Ver →
                     </button>

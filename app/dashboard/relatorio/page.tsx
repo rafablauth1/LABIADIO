@@ -62,7 +62,26 @@ const SPRINTS: Sprint[] = [
     ],
   },
   {
-    id: 'S4', nome: 'Infraestrutura Azure',
+    id: 'S4', nome: 'Fotos, IA & Ambiente',
+    descricao: 'Upload de fotos, análise PDF por IA funcional, condições ambientais por sala e melhorias gerais',
+    status: 'concluido', pct: 100, inicio: '2026-04-26', fim: '2026-04-27',
+    entregas: [
+      'Upload e exibição de foto para equipamentos e auxiliares (Supabase Storage)',
+      'Layout ficha: foto 50/50 com campos de identificação lado a lado',
+      'Botão "Analisar PDF com IA" funcional — Claude Haiku extrai campos automaticamente',
+      'IA ativa em: Certificados, Manuais, ITs, Procedimentos, Normas e IT CHK',
+      'Filtro por ano com separadores em Certificados, Checagens, Manuais e Plano de Calibração',
+      'Editar e excluir certificados e manuais direto da ficha',
+      'Certificado salvo atualiza automaticamente as datas de calibração do equipamento',
+      'Manual vinculado por dropdown de equipamentos cadastrados (obrigatório)',
+      'Condições Ambientais: instalações por sala (prédio/bloco/sala/área) com termohigrômetro',
+      'Limites de temperatura e umidade por instalação — alerta em tempo real ao registrar',
+      'Auxiliares com múltiplos padrões vinculados (multi-select com busca)',
+      'Migrations executadas via Supabase CLI — todas as tabelas criadas no banco',
+    ],
+  },
+  {
+    id: 'S5', nome: 'Infraestrutura Azure',
     descricao: 'Migração para Azure (banco, auth e IA) — aguardando decisão com gestor',
     status: 'iniciado', pct: 40, inicio: '2026-04-25', fim: '2026-05-30',
     entregas: [
@@ -79,7 +98,7 @@ const SPRINTS: Sprint[] = [
     bloqueio: 'Aguardando reunião com gestor para definição do tenant Azure e budget de IA',
   },
   {
-    id: 'S5', nome: 'IA Consultora',
+    id: 'S6', nome: 'IA Consultora',
     descricao: 'Análise automática de documentos, conformidade ISO 17025 e chat contextualizado',
     status: 'planejado', pct: 0, inicio: '2026-06-01', fim: '2026-06-30',
     entregas: [
@@ -91,7 +110,7 @@ const SPRINTS: Sprint[] = [
     ],
   },
   {
-    id: 'S6', nome: 'Builder de Documentos',
+    id: 'S7', nome: 'Builder de Documentos',
     descricao: 'Geração automática de ITs, Procedimentos e relatórios em PDF formatado',
     status: 'planejado', pct: 0, inicio: '2026-07-01', fim: '2026-07-31',
     entregas: [
@@ -102,7 +121,7 @@ const SPRINTS: Sprint[] = [
     ],
   },
   {
-    id: 'S7', nome: 'Relatórios Executivos',
+    id: 'S8', nome: 'Relatórios Executivos',
     descricao: 'Dashboard gerencial, exportações e relatório mensal automático',
     status: 'planejado', pct: 0, inicio: '2026-08-01', fim: '2026-08-31',
     entregas: [

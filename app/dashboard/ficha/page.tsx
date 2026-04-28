@@ -107,7 +107,7 @@ export default function FichaPage() {
       const [r1, r2, r3, r4, r5, r6] = await Promise.all([
         supabase.from('certificados').select('*').eq('equip_id', id).order('emissao', { ascending: false }),
         supabase.from('checagens').select('*').eq('equip_id', id).order('data', { ascending: false }).limit(20),
-        supabase.from('auxiliares').select('*').eq('vinculado', tag).order('tag'),
+        supabase.from('auxiliares').select('*').contains('vinculado', [tag]).order('tag'),
         supabase.from('manuais').select('*').ilike('equip_tag', tag).order('created_at', { ascending: false }),
         supabase.from('softwares').select('*').ilike('equip_tag', tag).order('created_at', { ascending: false }),
         supabase.from('planos_calibracao').select('*').ilike('tag', tag).order('created_at', { ascending: false }),
@@ -417,7 +417,7 @@ export default function FichaPage() {
               <table className="w-full text-[11.5px]">
                 <thead>
                   <tr className="border-b border-white/7 bg-navy">
-                    {['', 'TAG', 'CATEGORIA', 'DESCRIÇÃO', 'MANUTENÇÃO'].map(h => (
+                    {['', 'TAG', 'CATEGORIA', 'DESCRIÇÃO', 'PADRÕES', 'MANUTENÇÃO'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
                     ))}
                   </tr>
@@ -433,11 +433,19 @@ export default function FichaPage() {
                       </td>
                       <td className="px-4 py-2.5"><span className="tag-chip">{a.tag}</span></td>
                       <td className="px-4 py-2.5 text-white/50 text-[10px]">{a.categoria}</td>
-                      <td className="px-4 py-2.5 text-white/70 max-w-[200px] truncate">{a.descricao}</td>
+                      <td className="px-4 py-2.5 text-white/70 max-w-[160px] truncate">{a.descricao}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex flex-wrap gap-1">
+                          {(a.vinculado || []).map((t: string) => (
+                            <span key={t} className="tag-chip text-[8px]">{t}</span>
+                          ))}
+                          {(!a.vinculado || a.vinculado.length === 0) && <span className="text-white/20 text-[10px]">—</span>}
+                        </div>
+                      </td>
                       <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{fmt(a.manut)}</td>
                     </tr>
                   ))}
-                  {aux.length === 0 && <EmptyRow cols={5} label={`Nenhum auxiliar vinculado à TAG ${equip.tag}`} />}
+                  {aux.length === 0 && <EmptyRow cols={6} label={`Nenhum auxiliar vinculado à TAG ${equip.tag}`} />}
                 </tbody>
               </table>
             )}
