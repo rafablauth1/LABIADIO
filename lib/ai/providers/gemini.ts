@@ -11,7 +11,7 @@ export async function analyzeWithGemini(pdfBase64: string, prompt: string): Prom
         { text: prompt },
       ],
     }],
-    generationConfig: { maxOutputTokens: 1024, temperature: 0.1 },
+    generationConfig: { maxOutputTokens: 8192, temperature: 0.1 },
   })
 
   const MAX_RETRIES = 3
