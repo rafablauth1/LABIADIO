@@ -108,6 +108,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(JSON.parse(jsonMatch[0]))
   } catch (err: any) {
     console.error('[analyze-pdf]', err)
+    const msg: string = err.message || ''
+    if (msg.includes('credit balance') || msg.includes('too low') || err.status === 400) {
+      return NextResponse.json(
+        { error: 'Saldo insuficiente na API de IA. Acesse console.anthropic.com → Billing para adicionar créditos.' },
+        { status: 402 }
+      )
+    }
     return NextResponse.json(
       { error: err.message || 'Erro interno ao analisar PDF.' },
       { status: 500 }
