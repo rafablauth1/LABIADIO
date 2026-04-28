@@ -1,5 +1,6 @@
 import Sidebar from '@/components/layout/Sidebar'
 import TopBar  from '@/components/layout/TopBar'
+import Chatbot from '@/components/ui/Chatbot'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+      <Chatbot />
     </div>
   )
 }
