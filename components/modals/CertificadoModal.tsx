@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Modal from '@/components/ui/Modal'
 import { FormField, FormSection, FormGrid } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
@@ -9,9 +9,9 @@ import { Sparkles, Paperclip, Loader2 } from 'lucide-react'
 import { useEquipamentos } from '@/lib/hooks/useEquipamentos'
 import { uploadFile } from '@/lib/storage/upload'
 
-interface Props { open: boolean; onClose: () => void }
+interface Props { open: boolean; onClose: () => void; certificado?: any }
 
-export default function CertificadoModal({ open, onClose }: Props) {
+export default function CertificadoModal({ open, onClose, certificado }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -22,6 +22,21 @@ export default function CertificadoModal({ open, onClose }: Props) {
   const [fileName, setFileName] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [f, setF] = useState({ num: '', equip_id: '', lab: '', emissao: '', acred: '', obs: '' })
+
+  useEffect(() => {
+    if (open) {
+      setF({
+        num:      certificado?.numero      || '',
+        equip_id: certificado?.equip_id    || '',
+        lab:      certificado?.laboratorio || '',
+        emissao:  certificado?.emissao?.slice(0, 10) || '',
+        acred:    certificado?.acreditacao || '',
+        obs:      certificado?.obs         || '',
+      })
+      setFile(null)
+      setFileName(null)
+    }
+  }, [open, certificado])
 
   function set(k: keyof typeof f, v: string) { setF(p => ({ ...p, [k]: v })) }
 
@@ -58,7 +73,7 @@ export default function CertificadoModal({ open, onClose }: Props) {
     if (!f.num || !f.equip_id) { alert('Preencha Nº do certificado e selecione o equipamento.'); return }
     setSaving(true)
 
-    let pdfPath: string | null = null
+    let pdfPath: string | null = certificado?.pdf_path || null
     if (file) {
       setUploading(true)
       pdfPath = await uploadFile(file, 'certs', f.num)
@@ -66,17 +81,43 @@ export default function CertificadoModal({ open, onClose }: Props) {
       if (!pdfPath) { setSaving(false); return }
     }
 
-    const { error } = await supabase.from('certificados').insert({
-      numero: f.num,
-      equip_id: f.equip_id,
-      laboratorio: f.lab || null,
-      emissao: f.emissao || null,
+    const payload = {
+      numero:      f.num,
+      equip_id:    f.equip_id,
+      laboratorio: f.lab   || null,
+      emissao:     f.emissao || null,
       acreditacao: f.acred || null,
-      obs: f.obs || null,
-      pdf_path: pdfPath,
-    })
+      obs:         f.obs   || null,
+      pdf_path:    pdfPath,
+    }
+
+    let error
+    if (certificado?.id) {
+      ({ error } = await supabase.from('certificados').update(payload).eq('id', certificado.id))
+    } else {
+      ({ error } = await supabase.from('certificados').insert(payload))
+    }
+    if (error) { setSaving(false); alert('Erro: ' + error.message); return }
+
+    // Atualiza os campos de calibração do equipamento
+    if (f.emissao && f.equip_id) {
+      const { data: equip } = await supabase
+        .from('equipamentos').select('cal_per').eq('id', f.equip_id).single()
+      if (equip) {
+        const calPer  = equip.cal_per || 12
+        const emDate  = new Date(f.emissao)
+        const valDate = new Date(emDate)
+        valDate.setMonth(valDate.getMonth() + calPer)
+        await supabase.from('equipamentos').update({
+          cal_data: f.emissao,
+          cal_val:  valDate.toISOString().slice(0, 10),
+          ncert:    f.num  || null,
+          lab_cal:  f.lab  || null,
+        }).eq('id', f.equip_id)
+      }
+    }
+
     setSaving(false)
-    if (error) { alert('Erro: ' + error.message); return }
     onClose(); router.refresh()
   }
 
@@ -84,12 +125,12 @@ export default function CertificadoModal({ open, onClose }: Props) {
   const sel = 'input w-full bg-navy border border-white/10 rounded-btn text-white text-sm px-3 py-2 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 transition-colors'
 
   return (
-    <Modal open={open} onClose={onClose} title="Registrar Certificado"
+    <Modal open={open} onClose={onClose} title={certificado?.id ? 'Editar Certificado' : 'Registrar Certificado'}
       footer={
         <>
           <button className="btn-secondary text-xs" onClick={onClose}>Cancelar</button>
           <button className="btn-primary text-xs" onClick={save} disabled={saving || uploading}>
-            {uploading ? 'Enviando PDF...' : saving ? 'Salvando...' : 'Salvar'}
+            {uploading ? 'Enviando PDF...' : saving ? 'Salvando...' : certificado?.id ? 'Salvar Alterações' : 'Salvar'}
           </button>
         </>
       }

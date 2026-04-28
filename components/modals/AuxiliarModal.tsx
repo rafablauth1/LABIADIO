@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Modal from '@/components/ui/Modal'
 import { FormField, FormSection, FormGrid, FileUpload } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
+import { uploadFile } from '@/lib/storage/upload'
 import { useRouter } from 'next/navigation'
 
 interface Props { open: boolean; onClose: () => void }
@@ -22,14 +23,24 @@ export default function AuxiliarModal({ open, onClose }: Props) {
     tag: '', categoria: 'CDN / Acoplamento', descricao: '',
     vinculado: '', manut: '', obs: '',
   })
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState('')
   function set(k: keyof typeof f, v: string) { setF(p => ({ ...p, [k]: v })) }
 
   async function save() {
     if (!f.tag || !f.descricao) { alert('Preencha TAG e descrição.'); return }
     setSaving(true)
+
+    let photo_url: string | null = null
+    if (photoFile) {
+      const path = await uploadFile(photoFile, 'auxiliares', f.tag || 'foto')
+      if (path) photo_url = path
+    }
+
     const { error } = await supabase.from('auxiliares').insert({
       tag: f.tag.toUpperCase(), categoria: f.categoria, descricao: f.descricao,
       vinculado: f.vinculado || null, manut: f.manut || null, obs: f.obs || null,
+      photo_url,
     })
     setSaving(false)
     if (error) { alert('Erro: ' + error.message); return }
@@ -68,6 +79,24 @@ export default function AuxiliarModal({ open, onClose }: Props) {
         <FormField label="Manutenção até">
           <input type="date" className={inp} value={f.manut} onChange={e => set('manut', e.target.value)} />
         </FormField>
+        <FormSection>Foto do Aparelho</FormSection>
+        {photoPreview && (
+          <div className="col-span-2 mb-1">
+            <img
+              src={photoPreview}
+              alt="Foto do aparelho"
+              className="h-36 rounded-lg object-contain border border-white/10 bg-navy/60"
+            />
+          </div>
+        )}
+        <FileUpload
+          label="foto do aparelho"
+          accept="image/*"
+          onChange={file => {
+            setPhotoFile(file)
+            setPhotoPreview(URL.createObjectURL(file))
+          }}
+        />
         <FormSection>Validação (PDF)</FormSection>
         <FileUpload label="PDF de validação" accept=".pdf" />
         <FormSection>Observações</FormSection>

@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, CheckCircle2, AlertTriangle, XCircle, Clock, Pencil, FileText, ExternalLink } from 'lucide-react'
+import { Search, CheckCircle2, AlertTriangle, XCircle, Clock, Pencil, Trash2, FileText, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEquipamentos } from '@/lib/hooks/useEquipamentos'
 import EquipamentoModal from '@/components/modals/EquipamentoModal'
+import CertificadoModal from '@/components/modals/CertificadoModal'
+import ManualModal from '@/components/modals/ManualModal'
+import PhotoImg from '@/components/ui/PhotoImg'
 
 function fmt(d: string | null) {
   if (!d) return '—'
@@ -82,6 +85,18 @@ export default function FichaPage() {
   const [softwares, setSoftwares] = useState<any[]>([])
   const [planos, setPlanos]       = useState<any[]>([])
 
+  // filtros de ano
+  const [certYear, setCertYear]   = useState<string | null>(null)
+  const [chkYear,  setChkYear]    = useState<string | null>(null)
+  const [calYear,  setCalYear]    = useState<string | null>(null)
+  const [manYear,  setManYear]    = useState<string | null>(null)
+
+  // edição de registros
+  const [certEdit, setCertEdit]   = useState<any>(null)
+  const [certModalOpen, setCertModalOpen] = useState(false)
+  const [manEdit,  setManEdit]    = useState<any>(null)
+  const [manModalOpen, setManModalOpen]   = useState(false)
+
   async function carregar(id: string) {
     if (!id) { setEquip(null); return }
     setLoading(true)
@@ -119,6 +134,40 @@ export default function FichaPage() {
     manuais:      manuais.length,
     softwares:    softwares.length,
     calibracao:   planos.length,
+  }
+
+  function getYears(items: any[], dateField: string) {
+    return [...new Set(items.map(i => i[dateField]?.slice(0, 4)).filter(Boolean))].sort().reverse() as string[]
+  }
+
+  function filterByYear<T extends Record<string, any>>(items: T[], dateField: string, year: string | null): T[] {
+    return year ? items.filter(i => i[dateField]?.startsWith(year)) : items
+  }
+
+  function buildRows<T extends Record<string, any>>(items: T[], dateField: string, year: string | null) {
+    const filtered = filterByYear(items, dateField, year)
+    const rows: ({ type: 'sep'; year: string } | { type: 'row'; item: T })[] = []
+    let lastYear = ''
+    filtered.forEach(item => {
+      const y = item[dateField]?.slice(0, 4) || 'Sem data'
+      if (!year && y !== lastYear) { lastYear = y; rows.push({ type: 'sep', year: y }) }
+      rows.push({ type: 'row', item })
+    })
+    return rows
+  }
+
+  async function deleteCert(cert: any) {
+    if (!confirm(`Excluir certificado ${cert.numero}?`)) return
+    const { error } = await supabase.from('certificados').delete().eq('id', cert.id)
+    if (error) { alert('Erro: ' + error.message); return }
+    carregar(equipId)
+  }
+
+  async function deleteManual(m: any) {
+    if (!confirm(`Excluir o manual "${m.titulo}"?`)) return
+    const { error } = await supabase.from('manuais').delete().eq('id', m.id)
+    if (error) { alert('Erro: ' + error.message); return }
+    carregar(equipId)
   }
 
   const sel = 'w-full bg-navy border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20'
@@ -199,13 +248,24 @@ export default function FichaPage() {
 
           {/* Info cards */}
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="card p-5">
-              <p className="font-mono text-[9px] tracking-[2px] text-gold uppercase mb-4">Identificação</p>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Fabricante"   value={equip.fabricante} />
-                <Field label="Nº Série"     value={equip.serie} />
-                <Field label="Patrimônio"   value={equip.patrimonio} />
-                <Field label="Localização"  value={equip.local} />
+            <div className="card overflow-hidden">
+              <div className="flex min-h-[180px]">
+                {equip.photo_url && (
+                  <div className="w-1/2 flex-shrink-0 p-4 flex items-center justify-center border-r border-white/7">
+                    <PhotoImg
+                      path={equip.photo_url}
+                      alt={`Foto ${equip.tag}`}
+                      className="w-full h-full object-contain rounded-lg"
+                    />
+                  </div>
+                )}
+                <div className={`flex flex-col gap-3 p-5 ${equip.photo_url ? 'w-1/2' : 'w-full'}`}>
+                  <p className="font-mono text-[9px] tracking-[2px] text-gold uppercase">Identificação</p>
+                  <Field label="Fabricante"  value={equip.fabricante} />
+                  <Field label="Nº Série"    value={equip.serie} />
+                  <Field label="Patrimônio"  value={equip.patrimonio} />
+                  <Field label="Localização" value={equip.local} />
+                </div>
               </div>
             </div>
             <div className="card p-5">
@@ -250,66 +310,114 @@ export default function FichaPage() {
             </div>
 
             {/* Certificados */}
-            {tab === 'certificados' && (
-              <table className="w-full text-[11.5px]">
-                <thead>
-                  <tr className="border-b border-white/7 bg-navy">
-                    {['Nº CERTIFICADO', 'LABORATÓRIO', 'EMISSÃO', 'ACREDITAÇÃO', 'PDF'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {certs.map(c => (
-                    <tr key={c.id} className="hover:bg-white/3">
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/80">{c.numero}</td>
-                      <td className="px-4 py-2.5 text-white/50">{c.laboratorio || '—'}</td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(c.emissao)}</td>
-                      <td className="px-4 py-2.5 text-white/40 text-[10px]">{c.acreditacao || '—'}</td>
-                      <td className="px-4 py-2.5"><PdfButton path={c.pdf_path} /></td>
-                    </tr>
-                  ))}
-                  {certs.length === 0 && <EmptyRow cols={5} label="Nenhum certificado vinculado" />}
-                </tbody>
-              </table>
-            )}
+            {tab === 'certificados' && (() => {
+              const years = getYears(certs, 'emissao')
+              const rows  = buildRows(certs, 'emissao', certYear)
+              return (
+                <>
+                  {years.length > 0 && (
+                    <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/5 bg-navy/30 flex-wrap">
+                      <span className="font-mono text-[8px] text-white/25 uppercase tracking-widest mr-1">Ano:</span>
+                      <button onClick={() => setCertYear(null)} className={`font-mono text-[9px] px-2.5 py-1 rounded-full transition-colors ${!certYear ? 'bg-gold/20 text-gold' : 'text-white/35 hover:text-white/70'}`}>Todos</button>
+                      {years.map(y => (
+                        <button key={y} onClick={() => setCertYear(certYear === y ? null : y)} className={`font-mono text-[9px] px-2.5 py-1 rounded-full transition-colors ${certYear === y ? 'bg-gold/20 text-gold' : 'text-white/35 hover:text-white/70'}`}>{y}</button>
+                      ))}
+                    </div>
+                  )}
+                  <table className="w-full text-[11.5px]">
+                    <thead>
+                      <tr className="border-b border-white/7 bg-navy">
+                        {['Nº CERTIFICADO', 'LABORATÓRIO', 'EMISSÃO', 'ACREDITAÇÃO', 'PDF', ''].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {rows.map((r, i) => r.type === 'sep'
+                        ? (
+                          <tr key={`sep-${r.year}`} className="bg-white/2">
+                            <td colSpan={6} className="px-4 py-1.5 font-mono text-[8px] tracking-[2px] text-white/30 uppercase">── {r.year}</td>
+                          </tr>
+                        ) : (
+                          <tr key={r.item.id} className="hover:bg-white/3 group">
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/80">{r.item.numero}</td>
+                            <td className="px-4 py-2.5 text-white/50">{r.item.laboratorio || '—'}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(r.item.emissao)}</td>
+                            <td className="px-4 py-2.5 text-white/40 text-[10px]">{r.item.acreditacao || '—'}</td>
+                            <td className="px-4 py-2.5"><PdfButton path={r.item.pdf_path} /></td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => { setCertEdit(r.item); setCertModalOpen(true) }} className="text-white/30 hover:text-gold transition-colors"><Pencil size={12} /></button>
+                                <button onClick={() => deleteCert(r.item)} className="text-white/30 hover:text-danger transition-colors"><Trash2 size={12} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      )}
+                      {certs.length === 0 && <EmptyRow cols={6} label="Nenhum certificado vinculado" />}
+                    </tbody>
+                  </table>
+                </>
+              )
+            })()}
 
             {/* Checagens */}
-            {tab === 'checagens' && (
-              <table className="w-full text-[11.5px]">
-                <thead>
-                  <tr className="border-b border-white/7 bg-navy">
-                    {['DATA', 'NORMA', 'TÉCNICO', 'T°C', 'UMID', 'RESULTADO'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {checagens.map(c => (
-                    <tr key={c.id} className="hover:bg-white/3">
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/60">{fmt(c.data)}</td>
-                      <td className="px-4 py-2.5 text-white/50 text-[10px]">{c.norma || '—'}</td>
-                      <td className="px-4 py-2.5 text-white/50 text-[10px]">{c.tecnico || '—'}</td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{c.temperatura ?? '—'}</td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{c.umidade ?? '—'}</td>
-                      <td className="px-4 py-2.5">
-                        <span className={`badge text-[9px] ${c.resultado === 'Conforme' ? 'badge-success' : c.resultado === 'Não conforme' ? 'badge-danger' : 'badge-warning'}`}>
-                          {c.resultado}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {checagens.length === 0 && <EmptyRow cols={6} label="Nenhuma checagem registrada" />}
-                </tbody>
-              </table>
-            )}
+            {tab === 'checagens' && (() => {
+              const years = getYears(checagens, 'data')
+              const rows  = buildRows(checagens, 'data', chkYear)
+              return (
+                <>
+                  {years.length > 0 && (
+                    <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/5 bg-navy/30 flex-wrap">
+                      <span className="font-mono text-[8px] text-white/25 uppercase tracking-widest mr-1">Ano:</span>
+                      <button onClick={() => setChkYear(null)} className={`font-mono text-[9px] px-2.5 py-1 rounded-full transition-colors ${!chkYear ? 'bg-gold/20 text-gold' : 'text-white/35 hover:text-white/70'}`}>Todos</button>
+                      {years.map(y => (
+                        <button key={y} onClick={() => setChkYear(chkYear === y ? null : y)} className={`font-mono text-[9px] px-2.5 py-1 rounded-full transition-colors ${chkYear === y ? 'bg-gold/20 text-gold' : 'text-white/35 hover:text-white/70'}`}>{y}</button>
+                      ))}
+                    </div>
+                  )}
+                  <table className="w-full text-[11.5px]">
+                    <thead>
+                      <tr className="border-b border-white/7 bg-navy">
+                        {['DATA', 'NORMA', 'TÉCNICO', 'T°C', 'UMID', 'RESULTADO'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {rows.map((r, i) => r.type === 'sep'
+                        ? (
+                          <tr key={`sep-${r.year}`} className="bg-white/2">
+                            <td colSpan={6} className="px-4 py-1.5 font-mono text-[8px] tracking-[2px] text-white/30 uppercase">── {r.year}</td>
+                          </tr>
+                        ) : (
+                          <tr key={r.item.id} className="hover:bg-white/3">
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/60">{fmt(r.item.data)}</td>
+                            <td className="px-4 py-2.5 text-white/50 text-[10px]">{r.item.norma || '—'}</td>
+                            <td className="px-4 py-2.5 text-white/50 text-[10px]">{r.item.tecnico || '—'}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{r.item.temperatura ?? '—'}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{r.item.umidade ?? '—'}</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`badge text-[9px] ${r.item.resultado === 'Conforme' ? 'badge-success' : r.item.resultado === 'Não conforme' ? 'badge-danger' : 'badge-warning'}`}>
+                                {r.item.resultado}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      )}
+                      {checagens.length === 0 && <EmptyRow cols={6} label="Nenhuma checagem registrada" />}
+                    </tbody>
+                  </table>
+                </>
+              )
+            })()}
 
             {/* Auxiliares */}
             {tab === 'auxiliares' && (
               <table className="w-full text-[11.5px]">
                 <thead>
                   <tr className="border-b border-white/7 bg-navy">
-                    {['TAG', 'CATEGORIA', 'DESCRIÇÃO', 'MANUTENÇÃO'].map(h => (
+                    {['', 'TAG', 'CATEGORIA', 'DESCRIÇÃO', 'MANUTENÇÃO'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
                     ))}
                   </tr>
@@ -317,40 +425,73 @@ export default function FichaPage() {
                 <tbody className="divide-y divide-white/5">
                   {aux.map(a => (
                     <tr key={a.id} className="hover:bg-white/3">
+                      <td className="px-3 py-2">
+                        {a.photo_url
+                          ? <PhotoImg path={a.photo_url} alt={a.tag} className="w-10 h-10 object-cover rounded-lg border border-white/10 bg-navy/60 flex-shrink-0" />
+                          : <div className="w-10 h-10 rounded-lg border border-white/8 bg-navy/40" />
+                        }
+                      </td>
                       <td className="px-4 py-2.5"><span className="tag-chip">{a.tag}</span></td>
                       <td className="px-4 py-2.5 text-white/50 text-[10px]">{a.categoria}</td>
-                      <td className="px-4 py-2.5 text-white/70 max-w-[240px] truncate">{a.descricao}</td>
+                      <td className="px-4 py-2.5 text-white/70 max-w-[200px] truncate">{a.descricao}</td>
                       <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{fmt(a.manut)}</td>
                     </tr>
                   ))}
-                  {aux.length === 0 && <EmptyRow cols={4} label={`Nenhum auxiliar vinculado à TAG ${equip.tag}`} />}
+                  {aux.length === 0 && <EmptyRow cols={5} label={`Nenhum auxiliar vinculado à TAG ${equip.tag}`} />}
                 </tbody>
               </table>
             )}
 
             {/* Manuais */}
-            {tab === 'manuais' && (
-              <table className="w-full text-[11.5px]">
-                <thead>
-                  <tr className="border-b border-white/7 bg-navy">
-                    {['TIPO', 'TÍTULO', 'REVISÃO', 'PDF'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {manuais.map(m => (
-                    <tr key={m.id} className="hover:bg-white/3">
-                      <td className="px-4 py-2.5 text-white/50 text-[10px]">{m.tipo}</td>
-                      <td className="px-4 py-2.5 text-white/80 max-w-[300px] truncate">{m.titulo}</td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{m.revisao || '—'}</td>
-                      <td className="px-4 py-2.5"><PdfButton path={m.pdf_path} /></td>
-                    </tr>
-                  ))}
-                  {manuais.length === 0 && <EmptyRow cols={4} label={`Nenhum manual vinculado à TAG ${equip.tag}`} />}
-                </tbody>
-              </table>
-            )}
+            {tab === 'manuais' && (() => {
+              const years = getYears(manuais, 'created_at')
+              const rows  = buildRows(manuais, 'created_at', manYear)
+              return (
+                <>
+                  {years.length > 0 && (
+                    <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/5 bg-navy/30 flex-wrap">
+                      <span className="font-mono text-[8px] text-white/25 uppercase tracking-widest mr-1">Ano:</span>
+                      <button onClick={() => setManYear(null)} className={`font-mono text-[9px] px-2.5 py-1 rounded-full transition-colors ${!manYear ? 'bg-gold/20 text-gold' : 'text-white/35 hover:text-white/70'}`}>Todos</button>
+                      {years.map(y => (
+                        <button key={y} onClick={() => setManYear(manYear === y ? null : y)} className={`font-mono text-[9px] px-2.5 py-1 rounded-full transition-colors ${manYear === y ? 'bg-gold/20 text-gold' : 'text-white/35 hover:text-white/70'}`}>{y}</button>
+                      ))}
+                    </div>
+                  )}
+                  <table className="w-full text-[11.5px]">
+                    <thead>
+                      <tr className="border-b border-white/7 bg-navy">
+                        {['TIPO', 'TÍTULO', 'REVISÃO', 'PDF', ''].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {rows.map((r) => r.type === 'sep'
+                        ? (
+                          <tr key={`sep-${r.year}`} className="bg-white/2">
+                            <td colSpan={5} className="px-4 py-1.5 font-mono text-[8px] tracking-[2px] text-white/30 uppercase">── {r.year}</td>
+                          </tr>
+                        ) : (
+                          <tr key={r.item.id} className="hover:bg-white/3 group">
+                            <td className="px-4 py-2.5 text-white/50 text-[10px]">{r.item.tipo}</td>
+                            <td className="px-4 py-2.5 text-white/80 max-w-[280px] truncate">{r.item.titulo}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{r.item.revisao || '—'}</td>
+                            <td className="px-4 py-2.5"><PdfButton path={r.item.pdf_path} /></td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => { setManEdit(r.item); setManModalOpen(true) }} className="text-white/30 hover:text-gold transition-colors"><Pencil size={12} /></button>
+                                <button onClick={() => deleteManual(r.item)} className="text-white/30 hover:text-danger transition-colors"><Trash2 size={12} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      )}
+                      {manuais.length === 0 && <EmptyRow cols={5} label={`Nenhum manual vinculado à TAG ${equip.tag}`} />}
+                    </tbody>
+                  </table>
+                </>
+              )
+            })()}
 
             {/* Softwares */}
             {tab === 'softwares' && (
@@ -382,41 +523,62 @@ export default function FichaPage() {
             )}
 
             {/* Plano de Calibração */}
-            {tab === 'calibracao' && (
-              <table className="w-full text-[11.5px]">
-                <thead>
-                  <tr className="border-b border-white/7 bg-navy">
-                    {['LAB. CALIBRADOR', 'PERIOD.', 'ÚLTIMA', 'PRÓXIMA', 'Nº CERT.', 'GRANDEZAS'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {planos.map(p => (
-                    <tr key={p.id} className="hover:bg-white/3">
-                      <td className="px-4 py-2.5 text-white/70 max-w-[160px] truncate">{p.laboratorio || '—'}</td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{p.periodicidade}m</td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(p.ultima)}</td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(p.proxima)}</td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{p.ncert || '—'}</td>
-                      <td className="px-4 py-2.5">
-                        {p.grandezas?.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {p.grandezas.slice(0, 3).map((g: string) => (
-                              <span key={g} className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/8 text-white/50">{g}</span>
-                            ))}
-                            {p.grandezas.length > 3 && (
-                              <span className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-white/30">+{p.grandezas.length - 3}</span>
-                            )}
-                          </div>
-                        ) : <span className="text-white/20">—</span>}
-                      </td>
-                    </tr>
-                  ))}
-                  {planos.length === 0 && <EmptyRow cols={6} label={`Nenhum plano de calibração para a TAG ${equip.tag}`} />}
-                </tbody>
-              </table>
-            )}
+            {tab === 'calibracao' && (() => {
+              const years = getYears(planos, 'ultima')
+              const rows  = buildRows(planos, 'ultima', calYear)
+              return (
+                <>
+                  {years.length > 0 && (
+                    <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/5 bg-navy/30 flex-wrap">
+                      <span className="font-mono text-[8px] text-white/25 uppercase tracking-widest mr-1">Ano:</span>
+                      <button onClick={() => setCalYear(null)} className={`font-mono text-[9px] px-2.5 py-1 rounded-full transition-colors ${!calYear ? 'bg-gold/20 text-gold' : 'text-white/35 hover:text-white/70'}`}>Todos</button>
+                      {years.map(y => (
+                        <button key={y} onClick={() => setCalYear(calYear === y ? null : y)} className={`font-mono text-[9px] px-2.5 py-1 rounded-full transition-colors ${calYear === y ? 'bg-gold/20 text-gold' : 'text-white/35 hover:text-white/70'}`}>{y}</button>
+                      ))}
+                    </div>
+                  )}
+                  <table className="w-full text-[11.5px]">
+                    <thead>
+                      <tr className="border-b border-white/7 bg-navy">
+                        {['LAB. CALIBRADOR', 'PERIOD.', 'ÚLTIMA', 'PRÓXIMA', 'Nº CERT.', 'GRANDEZAS'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left font-mono text-[8px] tracking-[1.5px] text-white/35 uppercase">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {rows.map((r, i) => r.type === 'sep'
+                        ? (
+                          <tr key={`sep-${r.year}`} className="bg-white/2">
+                            <td colSpan={6} className="px-4 py-1.5 font-mono text-[8px] tracking-[2px] text-white/30 uppercase">── {r.year}</td>
+                          </tr>
+                        ) : (
+                          <tr key={r.item.id} className="hover:bg-white/3">
+                            <td className="px-4 py-2.5 text-white/70 max-w-[160px] truncate">{r.item.laboratorio || '—'}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{r.item.periodicidade}m</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(r.item.ultima)}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(r.item.proxima)}</td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-white/40">{r.item.ncert || '—'}</td>
+                            <td className="px-4 py-2.5">
+                              {r.item.grandezas?.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {r.item.grandezas.slice(0, 3).map((g: string) => (
+                                    <span key={g} className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/8 text-white/50">{g}</span>
+                                  ))}
+                                  {r.item.grandezas.length > 3 && (
+                                    <span className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-white/30">+{r.item.grandezas.length - 3}</span>
+                                  )}
+                                </div>
+                              ) : <span className="text-white/20">—</span>}
+                            </td>
+                          </tr>
+                        )
+                      )}
+                      {planos.length === 0 && <EmptyRow cols={6} label={`Nenhum plano de calibração para a TAG ${equip.tag}`} />}
+                    </tbody>
+                  </table>
+                </>
+              )
+            })()}
           </div>
         </>
       )}
@@ -425,6 +587,16 @@ export default function FichaPage() {
         open={editOpen}
         equipamento={equip}
         onClose={() => { setEditOpen(false); carregar(equipId) }}
+      />
+      <CertificadoModal
+        open={certModalOpen}
+        certificado={certEdit}
+        onClose={() => { setCertModalOpen(false); setCertEdit(null); carregar(equipId) }}
+      />
+      <ManualModal
+        open={manModalOpen}
+        manual={manEdit}
+        onClose={() => { setManModalOpen(false); setManEdit(null); carregar(equipId) }}
       />
     </div>
   )

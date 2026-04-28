@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Pencil, Trash2, CheckCircle2, AlertTriangle, XCircle, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import EquipamentoModal from '@/components/modals/EquipamentoModal'
+import PhotoImg from '@/components/ui/PhotoImg'
 
 function fmt(d: string | null) {
   if (!d) return '—'
@@ -125,15 +126,26 @@ export default function EquipamentoFichaPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="card p-5">
-          <p className="font-mono text-[9px] tracking-[2px] text-gold uppercase mb-4">Identificação</p>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="TAG" value={equip.tag} />
-            <Field label="TAG de Área" value={equip.area} />
-            <Field label="Fabricante" value={equip.fabricante} />
-            <Field label="Nº Série" value={equip.serie} />
-            <Field label="Patrimônio" value={equip.patrimonio} />
-            <Field label="Localização" value={equip.local} />
+        <div className="card overflow-hidden">
+          <div className="flex min-h-[200px]">
+            {equip.photo_url && (
+              <div className="w-1/2 flex-shrink-0 p-4 flex items-center justify-center border-r border-white/7">
+                <PhotoImg
+                  path={equip.photo_url}
+                  alt={`Foto ${equip.tag}`}
+                  className="w-full h-full object-contain rounded-lg"
+                />
+              </div>
+            )}
+            <div className={`flex flex-col gap-3 p-5 ${equip.photo_url ? 'w-1/2' : 'w-full'}`}>
+              <p className="font-mono text-[9px] tracking-[2px] text-gold uppercase">Identificação</p>
+              <Field label="TAG"          value={equip.tag} />
+              <Field label="TAG de Área"  value={equip.area} />
+              <Field label="Fabricante"   value={equip.fabricante} />
+              <Field label="Nº Série"     value={equip.serie} />
+              <Field label="Patrimônio"   value={equip.patrimonio} />
+              <Field label="Localização"  value={equip.local} />
+            </div>
           </div>
         </div>
 

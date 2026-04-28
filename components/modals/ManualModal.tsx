@@ -1,27 +1,45 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Modal from '@/components/ui/Modal'
 import { FormField, FormSection, FormGrid } from '@/components/ui/FormField'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Sparkles, Paperclip, Loader2 } from 'lucide-react'
 import { uploadFile } from '@/lib/storage/upload'
+import { useEquipamentos } from '@/lib/hooks/useEquipamentos'
 
-interface Props { open: boolean; onClose: () => void }
+interface Props { open: boolean; onClose: () => void; manual?: any }
 
 const TIPOS = ['Manual do Usuário','Manual de Serviço','Manual de Calibração','Guia de Operação','Outro']
 
-export default function ManualModal({ open, onClose }: Props) {
+export default function ManualModal({ open, onClose, manual }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const fileRef = useRef<HTMLInputElement>(null)
+  const { equip } = useEquipamentos()
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
-  const [f, setF] = useState({ tag: '', tipo: 'Manual do Usuário', titulo: '', rev: '' })
+  const [f, setF] = useState({ equip_id: '', tipo: 'Manual do Usuário', titulo: '', rev: '' })
+
+  useEffect(() => {
+    if (open) {
+      const equipId = manual?.equip_tag
+        ? equip.find(e => e.tag === manual.equip_tag)?.id || ''
+        : ''
+      setF({
+        equip_id: equipId,
+        tipo:     manual?.tipo    || 'Manual do Usuário',
+        titulo:   manual?.titulo  || '',
+        rev:      manual?.revisao || '',
+      })
+      setFile(null)
+      setFileName(null)
+    }
+  }, [open, manual, equip])
 
   function set(k: keyof typeof f, v: string) { setF(p => ({ ...p, [k]: v })) }
 
@@ -54,10 +72,13 @@ export default function ManualModal({ open, onClose }: Props) {
   }
 
   async function save() {
-    if (!f.titulo) { alert('Preencha o título.'); return }
+    if (!f.equip_id) { alert('Selecione o equipamento.'); return }
+    if (!f.titulo)   { alert('Preencha o título.'); return }
     setSaving(true)
 
-    let pdfPath: string | null = null
+    const equipSelecionado = equip.find(e => e.id === f.equip_id)
+
+    let pdfPath: string | null = manual?.pdf_path || null
     if (file) {
       setUploading(true)
       pdfPath = await uploadFile(file, 'manuais', f.titulo)
@@ -65,15 +86,21 @@ export default function ManualModal({ open, onClose }: Props) {
       if (!pdfPath) { setSaving(false); return }
     }
 
-    const { data: labId } = await supabase.rpc('get_user_lab_id')
-    const { error } = await supabase.from('manuais').insert({
-      lab_id: labId,
-      equip_tag: f.tag.toUpperCase() || null,
-      tipo: f.tipo,
-      titulo: f.titulo,
-      revisao: f.rev || null,
-      pdf_path: pdfPath,
-    })
+    const payload = {
+      equip_tag: equipSelecionado?.tag || null,
+      tipo:      f.tipo,
+      titulo:    f.titulo,
+      revisao:   f.rev || null,
+      pdf_path:  pdfPath,
+    }
+
+    let error
+    if (manual?.id) {
+      ;({ error } = await supabase.from('manuais').update(payload).eq('id', manual.id))
+    } else {
+      const { data: labId } = await supabase.rpc('get_user_lab_id')
+      ;({ error } = await supabase.from('manuais').insert({ lab_id: labId, ...payload }))
+    }
     setSaving(false)
     if (error) { alert('Erro: ' + error.message); return }
     onClose(); router.refresh()
@@ -83,12 +110,12 @@ export default function ManualModal({ open, onClose }: Props) {
   const sel = 'input w-full bg-navy border border-white/10 rounded-btn text-white text-sm px-3 py-2 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 transition-colors'
 
   return (
-    <Modal open={open} onClose={onClose} title="Registrar Manual"
+    <Modal open={open} onClose={onClose} title={manual?.id ? 'Editar Manual' : 'Registrar Manual'}
       footer={
         <>
           <button className="btn-secondary text-xs" onClick={onClose}>Cancelar</button>
           <button className="btn-primary text-xs" onClick={save} disabled={saving || uploading}>
-            {uploading ? 'Enviando PDF...' : saving ? 'Salvando...' : 'Salvar'}
+            {uploading ? 'Enviando PDF...' : saving ? 'Salvando...' : manual?.id ? 'Salvar Alterações' : 'Salvar'}
           </button>
         </>
       }
@@ -122,8 +149,16 @@ export default function ManualModal({ open, onClose }: Props) {
         </div>
 
         <FormSection>Dados do Manual</FormSection>
-        <FormField label="TAG">
-          <input className={inp} value={f.tag} onChange={e => set('tag', e.target.value)} placeholder="TAG do equipamento" />
+        <FormField label="Equipamento *" full>
+          <select className={sel} value={f.equip_id} onChange={e => set('equip_id', e.target.value)}>
+            <option value="">— Selecionar equipamento —</option>
+            {equip.map(e => (
+              <option key={e.id} value={e.id}>{e.tag} — {e.descricao}</option>
+            ))}
+          </select>
+          {equip.length === 0 && (
+            <p className="text-[10px] text-warning/70 font-mono mt-1">Nenhum equipamento cadastrado ainda.</p>
+          )}
         </FormField>
         <FormField label="Tipo">
           <select className={sel} value={f.tipo} onChange={e => set('tipo', e.target.value)}>

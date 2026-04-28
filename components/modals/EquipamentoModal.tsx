@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Modal from '@/components/ui/Modal'
-import { FormField, FormSection, FormGrid, NormasGrid } from '@/components/ui/FormField'
+import { FormField, FormSection, FormGrid, NormasGrid, FileUpload } from '@/components/ui/FormField'
+import PhotoImg from '@/components/ui/PhotoImg'
 import { createClient } from '@/lib/supabase/client'
+import { uploadFile } from '@/lib/storage/upload'
 import { useRouter } from 'next/navigation'
 
 interface Props { open: boolean; onClose: () => void; equipamento?: any }
@@ -27,6 +29,7 @@ function toForm(e: any) {
     ncert: e?.ncert || '', lab_cal: e?.lab_cal || '',
     normas: e?.normas || [] as string[],
     obs: e?.obs || '', status: e?.status || 'ativo', status_obs: e?.status_obs || '',
+    photo_url: e?.photo_url || '',
   }
 }
 
@@ -35,8 +38,16 @@ export default function EquipamentoModal({ open, onClose, equipamento }: Props) 
   const supabase = createClient()
   const [saving, setSaving] = useState(false)
   const [f, setF] = useState(toForm(equipamento))
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState('')
 
-  useEffect(() => { if (open) setF(toForm(equipamento)) }, [open, equipamento])
+  useEffect(() => {
+    if (open) {
+      setF(toForm(equipamento))
+      setPhotoFile(null)
+      setPhotoPreview('')
+    }
+  }, [open, equipamento])
 
   function set(k: keyof typeof f, v: string | string[]) {
     setF(p => ({ ...p, [k]: v }))
@@ -49,6 +60,13 @@ export default function EquipamentoModal({ open, onClose, equipamento }: Props) 
       return
     }
     setSaving(true)
+
+    let photo_url = f.photo_url || null
+    if (photoFile) {
+      const path = await uploadFile(photoFile, 'equipamentos', f.tag || 'foto')
+      if (path) photo_url = path
+    }
+
     const payload = {
       tag: f.tag.toUpperCase(),
       descricao: f.descricao,
@@ -67,6 +85,7 @@ export default function EquipamentoModal({ open, onClose, equipamento }: Props) 
       obs: f.obs || null,
       status: f.status,
       status_obs: f.status_obs || null,
+      photo_url,
     }
     let error
     if (equipamento?.id) {
@@ -159,6 +178,24 @@ export default function EquipamentoModal({ open, onClose, equipamento }: Props) 
 
         <FormSection>Normas Aplicáveis</FormSection>
         <NormasGrid value={f.normas} onChange={v => set('normas', v)} />
+
+        <FormSection>Foto do Equipamento</FormSection>
+        {(photoPreview || f.photo_url) && (
+          <div className="col-span-2 mb-1">
+            {photoPreview
+              ? <img src={photoPreview} alt="Foto do equipamento" className="h-36 rounded-lg object-contain border border-white/10 bg-navy/60" />
+              : <PhotoImg path={f.photo_url} alt="Foto do equipamento" className="h-36 rounded-lg object-contain border border-white/10 bg-navy/60" />
+            }
+          </div>
+        )}
+        <FileUpload
+          label="foto do equipamento"
+          accept="image/*"
+          onChange={file => {
+            setPhotoFile(file)
+            setPhotoPreview(URL.createObjectURL(file))
+          }}
+        />
 
         <FormSection>Observações</FormSection>
         <FormField label="OBS" full>
