@@ -7,6 +7,9 @@
 /.next/
 /out/
 
+# TypeScript cache — nunca commitar, quebra CSS em outras máquinas
+*.tsbuildinfo
+
 # production
 /build
 
