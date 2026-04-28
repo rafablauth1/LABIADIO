@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, Info } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { Plus, Info, Search } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CertificadoModal from '@/components/modals/CertificadoModal'
 
@@ -11,11 +12,14 @@ function fmt(d: string | null) {
   return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4)
 }
 
-export default function CertificadosPage() {
+function CertificadosContent() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const deepQ = searchParams.get('q')
   const [tab, setTab] = useState<'certs' | 'period'>('certs')
   const [items, setItems] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState(deepQ || '')
 
   async function load() {
     const { data } = await supabase.from('certificados').select('*').order('created_at', { ascending: false })
@@ -23,6 +27,12 @@ export default function CertificadosPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  const filtered = items.filter(c => !search ||
+    c.equip_tag?.toLowerCase().includes(search.toLowerCase()) ||
+    c.numero?.toLowerCase().includes(search.toLowerCase()) ||
+    c.lab?.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div>
@@ -48,6 +58,16 @@ export default function CertificadosPage() {
 
       {tab === 'certs' && (
         <div className="card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/5">
+            <Search size={12} className="text-white/30 flex-shrink-0" />
+            <input
+              className="flex-1 bg-transparent text-[11.5px] text-white placeholder:text-white/25 outline-none"
+              placeholder="Buscar por TAG, número ou laboratório..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && <button onClick={() => setSearch('')} className="text-white/30 hover:text-white/60 text-[10px]">✕</button>}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[11.5px]">
               <thead>
@@ -58,7 +78,7 @@ export default function CertificadosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {items.map((c: any) => (
+                {filtered.map((c: any) => (
                   <tr key={c.id} className="hover:bg-white/3 transition-colors">
                     <td className="px-4 py-2.5 font-mono text-[10px] text-white/70">{c.numero}</td>
                     <td className="px-4 py-2.5"><span className="tag-chip">{c.equip_tag}</span></td>
@@ -106,4 +126,8 @@ export default function CertificadosPage() {
       <CertificadoModal open={open} onClose={() => { setOpen(false); load() }} />
     </div>
   )
+}
+
+export default function CertificadosPage() {
+  return <Suspense fallback={null}><CertificadosContent /></Suspense>
 }

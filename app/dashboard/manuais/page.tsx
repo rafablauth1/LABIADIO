@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, FileText, ExternalLink, Pencil, Trash2 } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { Plus, FileText, ExternalLink, Pencil, Trash2, Search } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ManualModal from '@/components/modals/ManualModal'
 
@@ -31,12 +32,15 @@ function PdfButton({ path }: { path: string | null }) {
   )
 }
 
-export default function ManuaisPage() {
+function ManuaisContent() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const deepQ = searchParams.get('q')
   const [items, setItems] = useState<any[]>([])
   const [open, setOpen] = useState(false)
   const [manEdit, setManEdit] = useState<any>(null)
   const [yearFilter, setYearFilter] = useState<string | null>(null)
+  const [search, setSearch] = useState(deepQ || '')
 
   async function load() {
     const { data } = await supabase.from('manuais').select('*').order('created_at', { ascending: false })
@@ -45,8 +49,17 @@ export default function ManuaisPage() {
 
   useEffect(() => { load() }, [])
 
+  // Deep link: auto-open manual when navigated from chatbot with ?q=
+  useEffect(() => {
+    if (!deepQ || items.length === 0) return
+    const q = deepQ.toLowerCase()
+    const match = items.find(m => m.equip_tag?.toLowerCase() === q || m.titulo?.toLowerCase().includes(q))
+    if (match) { setManEdit(match); setOpen(true) }
+  }, [items, deepQ])
+
   const years = [...new Set(items.map(i => i.created_at?.slice(0, 4)).filter(Boolean))].sort().reverse() as string[]
-  const filtered = yearFilter ? items.filter(i => i.created_at?.startsWith(yearFilter)) : items
+  const filtered = (yearFilter ? items.filter(i => i.created_at?.startsWith(yearFilter)) : items)
+    .filter(i => !search || i.equip_tag?.toLowerCase().includes(search.toLowerCase()) || i.titulo?.toLowerCase().includes(search.toLowerCase()))
 
   const rows: ({ type: 'sep'; year: string } | { type: 'row'; item: any })[] = []
   let lastYear = ''
@@ -76,6 +89,16 @@ export default function ManuaisPage() {
       </div>
 
       <div className="card overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/5">
+          <Search size={12} className="text-white/30 flex-shrink-0" />
+          <input
+            className="flex-1 bg-transparent text-[11.5px] text-white placeholder:text-white/25 outline-none"
+            placeholder="Buscar por TAG ou título..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && <button onClick={() => setSearch('')} className="text-white/30 hover:text-white/60 text-[10px]">✕</button>}
+        </div>
         {years.length > 0 && (
           <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/5 bg-navy/30 flex-wrap">
             <span className="font-mono text-[8px] text-white/25 uppercase tracking-widest mr-1">Ano:</span>
@@ -128,4 +151,8 @@ export default function ManuaisPage() {
       <ManualModal open={open} manual={manEdit} onClose={() => { setOpen(false); setManEdit(null); load() }} />
     </div>
   )
+}
+
+export default function ManuaisPage() {
+  return <Suspense fallback={null}><ManuaisContent /></Suspense>
 }

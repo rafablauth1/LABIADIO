@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, FileText, Paperclip } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { Plus, FileText, Paperclip, Search } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import NormaModal from '@/components/modals/NormaModal'
 
@@ -17,11 +18,14 @@ const NORMAS_DEFAULT = [
   { norma: 'IEC 61000-3-2',  versao: '2018', titulo: 'Limits for Harmonic Current Emissions',             ensaio: 'Emissão' },
 ]
 
-export default function NormasPage() {
+function NormasContent() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const deepQ = searchParams.get('q')
   const [items, setItems] = useState<any[]>([])
   const [open, setOpen] = useState(false)
   const [editItem, setEditItem] = useState<any | null>(null)
+  const [search, setSearch] = useState(deepQ || '')
 
   async function load() {
     const { data } = await supabase.from('normas').select('*').order('norma')
@@ -29,6 +33,14 @@ export default function NormasPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Deep link: auto-open norma when navigated from chatbot with ?q=
+  useEffect(() => {
+    if (!deepQ || items.length === 0) return
+    const q = deepQ.toLowerCase()
+    const match = items.find(n => n.norma?.toLowerCase().includes(q) || n.titulo?.toLowerCase().includes(q))
+    if (match) { setEditItem(match); setOpen(true) }
+  }, [items, deepQ])
 
   function handleRowClick(item: any) {
     setEditItem(item)
@@ -63,6 +75,16 @@ export default function NormasPage() {
       </div>
 
       <div className="card overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/5">
+          <Search size={12} className="text-white/30 flex-shrink-0" />
+          <input
+            className="flex-1 bg-transparent text-[11.5px] text-white placeholder:text-white/25 outline-none"
+            placeholder="Buscar norma ou título..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && <button onClick={() => setSearch('')} className="text-white/30 hover:text-white/60 text-[10px]">✕</button>}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[11.5px]">
             <thead>
@@ -73,7 +95,7 @@ export default function NormasPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {items.map((n: any, i) => (
+              {items.filter(n => !search || n.norma?.toLowerCase().includes(search.toLowerCase()) || n.titulo?.toLowerCase().includes(search.toLowerCase())).map((n: any, i) => (
                 <tr
                   key={n.id || i}
                   className="hover:bg-white/3 transition-colors cursor-pointer"
@@ -115,4 +137,8 @@ export default function NormasPage() {
       <NormaModal open={open} onClose={handleClose} editItem={editItem} />
     </div>
   )
+}
+
+export default function NormasPage() {
+  return <Suspense fallback={null}><NormasContent /></Suspense>
 }

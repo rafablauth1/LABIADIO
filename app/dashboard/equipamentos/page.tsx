@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { Plus, Search, Pencil, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import EquipamentoModal from '@/components/modals/EquipamentoModal'
 import { LABS, getLabCode } from '@/lib/labs'
@@ -23,14 +24,16 @@ function fmt(d: string | null) {
   return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4)
 }
 
-export default function EquipamentosPage() {
+function EquipamentosContent() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const deepTag = searchParams.get('tag')
   const [equip, setEquip]     = useState<any[]>([])
   const [open, setOpen]       = useState(false)
   const [editing, setEditing] = useState<any>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [labFilter, setLabFilter] = useState('TODOS')
-  const [search, setSearch]   = useState('')
+  const [search, setSearch]   = useState(deepTag || '')
 
   async function load() {
     const { data } = await supabase.from('equipamentos').select('*').order('tag')
@@ -50,6 +53,13 @@ export default function EquipamentosPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Deep link: auto-open modal when navigated from chatbot with ?tag=
+  useEffect(() => {
+    if (!deepTag || equip.length === 0) return
+    const match = equip.find(e => e.tag?.toUpperCase() === deepTag.toUpperCase())
+    if (match) { setEditing(match); setOpen(true) }
+  }, [equip, deepTag])
 
   // Contagem por lab
   const labCounts = useMemo(() => {
@@ -226,4 +236,8 @@ export default function EquipamentosPage() {
       <EquipamentoModal open={open} equipamento={editing} onClose={() => { setOpen(false); setEditing(null); load() }} />
     </div>
   )
+}
+
+export default function EquipamentosPage() {
+  return <Suspense fallback={null}><EquipamentosContent /></Suspense>
 }

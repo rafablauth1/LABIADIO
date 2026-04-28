@@ -64,6 +64,24 @@ Retorne APENAS o JSON válido, sem texto adicional.`,
   "aprovado_por": "nome de quem aprovou"
 }
 Retorne APENAS o JSON válido, sem texto adicional.`,
+
+  equipamento: `Analise este certificado de calibração e extraia as informações do equipamento calibrado.
+Retorne um JSON com apenas os campos que encontrar — omita os que não estiverem no documento.
+Não invente valores. Se não encontrar um campo, não o inclua no JSON.
+
+Campos possíveis:
+{
+  "tag": "identificação/TAG do equipamento no laboratório — procure por campos como 'Identificação', 'TAG', 'Patrimônio', 'Item', 'Instrumento', 'Equipamento', 'Código'. O padrão é: 4 dígitos ou menos seguidos de 3 letras maiúsculas (ex: 1528EMC, 3055EMC) OU uma letra maiúscula seguida de até 4 dígitos e uma letra minúscula (ex: E0234e, S24x). Se encontrar algo nesse formato em qualquer parte do documento, inclua aqui.",
+  "descricao": "fabricante + modelo do equipamento (ex: Fluke 87V Multímetro Digital)",
+  "tipo": "tipo metrológico mais próximo: Gerador de Sinal | Amplificador de Potência | Analisador de Espectro | Medidor de Potência RF | Osciloscópio | Multímetro | Gerador ESD | Gerador EFT/Burst | Gerador de Surto | Gerador Dip/Interrupção | Medidor de Energia | Variac / Fonte CA | Padrão de Frequência | CDN / Acoplador | Divisor de Potência | Atenuador | LISN | Câmara Climática | Termo-Higrômetro | Outro",
+  "fabricante": "fabricante do equipamento",
+  "serie": "número de série",
+  "ncert": "número do certificado",
+  "lab_cal": "laboratório que emitiu o certificado",
+  "cal_dt": "data de emissão no formato YYYY-MM-DD",
+  "cal_val": "data de validade no formato YYYY-MM-DD"
+}
+Retorne APENAS o JSON válido, sem markdown, sem texto adicional.`,
 }
 
 export async function POST(req: NextRequest) {
@@ -100,12 +118,41 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer()
     const text  = await analyzeDocument(bytes, prompt)
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      return NextResponse.json({ error: 'Não foi possível extrair informações do PDF.' }, { status: 422 })
+    // Tenta extrair JSON de várias formas (markdown, texto solto, etc.)
+    let parsed: Record<string, any> | null = null
+
+    // 1. Direto como JSON
+    try { parsed = JSON.parse(text.trim()); } catch {}
+
+    // 2. Dentro de ```json ... ```
+    if (!parsed) {
+      const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (fence) try { parsed = JSON.parse(fence[1].trim()) } catch {}
     }
 
-    return NextResponse.json(JSON.parse(jsonMatch[0]))
+    // 3. Primeiro { ... } encontrado
+    if (!parsed) {
+      const block = text.match(/\{[\s\S]*\}/)
+      if (block) try { parsed = JSON.parse(block[0]) } catch {}
+    }
+
+    // 4. Retorna objeto vazio — campos ficarão em branco, melhor que erro
+    if (!parsed) parsed = {}
+
+    // Fallback: se a IA não extraiu a TAG, tenta achar no texto bruto pelo padrão conhecido
+    // Padrão 1: 1-4 dígitos + 3 letras maiúsculas  → ex: 1528EMC, 3055EMC
+    // Padrão 2: 1 letra maiúscula + 1-4 dígitos + 1 letra minúscula → ex: E0234e, S24x
+    if (tipo === 'equipamento' && !parsed.tag) {
+      const tagMatch = text.match(/\b(\d{1,4}[A-Z]{3})\b/) || text.match(/\b([A-Z]\d{1,4}[a-z])\b/)
+      if (tagMatch) parsed.tag = tagMatch[1]
+    }
+
+    // Remove campos null/undefined/vazios mas mantém os que têm valor
+    const clean = Object.fromEntries(
+      Object.entries(parsed).filter(([, v]) => v !== null && v !== undefined && v !== '')
+    )
+
+    return NextResponse.json(clean)
   } catch (err: any) {
     console.error('[analyze-pdf]', err)
     const msg: string = err.message || ''
@@ -113,6 +160,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Saldo insuficiente na API de IA. Acesse console.anthropic.com → Billing para adicionar créditos.' },
         { status: 402 }
+      )
+    }
+    if (msg.includes('503') || msg.includes('indisponível') || msg.includes('sobrecarregado')) {
+      return NextResponse.json(
+        { error: 'O serviço de IA está sobrecarregado no momento. Aguarde alguns segundos e tente novamente.' },
+        { status: 503 }
       )
     }
     return NextResponse.json(

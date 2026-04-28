@@ -1,14 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { Plus, Search } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import InstrucaoModal from '@/components/modals/InstrucaoModal'
 
-export default function InstrucoesPage() {
+function InstrucoesContent() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const deepQ = searchParams.get('q')
   const [items, setItems] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState(deepQ || '')
 
   async function load() {
     const { data } = await supabase.from('instrucoes_trabalho').select('*').order('created_at', { ascending: false })
@@ -16,6 +20,12 @@ export default function InstrucoesPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  const filtered = items.filter(it => !search ||
+    it.codigo?.toLowerCase().includes(search.toLowerCase()) ||
+    it.titulo?.toLowerCase().includes(search.toLowerCase()) ||
+    it.tags?.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div>
@@ -30,6 +40,16 @@ export default function InstrucoesPage() {
       </div>
 
       <div className="card overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/5">
+          <Search size={12} className="text-white/30 flex-shrink-0" />
+          <input
+            className="flex-1 bg-transparent text-[11.5px] text-white placeholder:text-white/25 outline-none"
+            placeholder="Buscar por código, TAG ou título..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && <button onClick={() => setSearch('')} className="text-white/30 hover:text-white/60 text-[10px]">✕</button>}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[11.5px]">
             <thead>
@@ -40,7 +60,7 @@ export default function InstrucoesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {items.map((it: any) => (
+              {filtered.map((it: any) => (
                 <tr key={it.id} className="hover:bg-white/3 transition-colors">
                   <td className="px-4 py-2.5 font-mono text-[10px] text-white/70">{it.codigo}</td>
                   <td className="px-4 py-2.5 text-white/80 max-w-[220px] truncate">{it.titulo}</td>
@@ -67,4 +87,8 @@ export default function InstrucoesPage() {
       <InstrucaoModal open={open} onClose={() => { setOpen(false); load() }} />
     </div>
   )
+}
+
+export default function InstrucoesPage() {
+  return <Suspense fallback={null}><InstrucoesContent /></Suspense>
 }

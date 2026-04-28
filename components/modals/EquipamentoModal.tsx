@@ -1,16 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Modal from '@/components/ui/Modal'
 import { FormField, FormSection, FormGrid, NormasGrid, FileUpload } from '@/components/ui/FormField'
 import PhotoImg from '@/components/ui/PhotoImg'
 import { createClient } from '@/lib/supabase/client'
 import { uploadFile } from '@/lib/storage/upload'
 import { useRouter } from 'next/navigation'
+import { Sparkles, Paperclip, Loader2 } from 'lucide-react'
 
 interface Props { open: boolean; onClose: () => void; equipamento?: any }
 
-const TIPOS = [
+const TIPOS_PADRAO = [
   'Gerador de Sinal', 'Amplificador de Potência', 'Analisador de Espectro',
   'Medidor de Potência RF', 'Osciloscópio', 'Multímetro', 'Gerador ESD',
   'Gerador EFT/Burst', 'Gerador de Surto', 'Gerador Dip/Interrupção',
@@ -36,21 +37,85 @@ function toForm(e: any) {
 export default function EquipamentoModal({ open, onClose, equipamento }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const certRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [certFile, setCertFile] = useState<File | null>(null)
+  const [certFileName, setCertFileName] = useState<string | null>(null)
   const [f, setF] = useState(toForm(equipamento))
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
+  const [tiposExtra, setTiposExtra] = useState<string[]>([])
+  const [tipoSugerido, setTipoSugerido] = useState<string | null>(null)
+  const [tipoManual, setTipoManual] = useState(false)
+
+  const todosOsTipos = [...TIPOS_PADRAO, ...tiposExtra]
 
   useEffect(() => {
     if (open) {
       setF(toForm(equipamento))
       setPhotoFile(null)
       setPhotoPreview('')
+      setCertFile(null)
+      setCertFileName(null)
     }
   }, [open, equipamento])
 
+  async function analyzeWithAI() {
+    if (!certFile) { alert('Selecione um certificado PDF primeiro.'); return }
+    setAnalyzing(true)
+    try {
+      const form = new FormData()
+      form.append('file', certFile)
+      form.append('tipo', 'equipamento')
+      const res = await fetch('/api/analyze-pdf', { method: 'POST', body: form })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || 'Erro ao analisar PDF.'); return }
+      const tipoIA = data.tipo || ''
+      const tipoConhecido = todosOsTipos.some(
+        t => t.toLowerCase() === tipoIA.toLowerCase()
+      )
+
+      setF(p => ({
+        ...p,
+        descricao:  data.descricao  || p.descricao,
+        tipo:       tipoConhecido ? tipoIA : p.tipo,
+        fabricante: data.fabricante || p.fabricante,
+        serie:      data.serie      || p.serie,
+        ncert:      data.ncert      || p.ncert,
+        lab_cal:    data.lab_cal    || p.lab_cal,
+        cal_dt:     data.cal_dt     || p.cal_dt,
+        cal_val:    data.cal_val    || p.cal_val,
+      }))
+
+      if (tipoIA && !tipoConhecido) {
+        setTipoSugerido(tipoIA)
+      }
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  function calcValidade(cal_dt: string, cal_per: string): string {
+    if (!cal_dt || !cal_per || cal_per === '0') return ''
+    const meses = parseInt(cal_per)
+    if (isNaN(meses) || meses <= 0) return ''
+    const d = new Date(cal_dt + 'T12:00:00')
+    d.setMonth(d.getMonth() + meses)
+    return d.toISOString().slice(0, 10)
+  }
+
   function set(k: keyof typeof f, v: string | string[]) {
-    setF(p => ({ ...p, [k]: v }))
+    setF(p => {
+      const next = { ...p, [k]: v }
+      if ((k === 'cal_dt' || k === 'cal_per') && typeof v === 'string') {
+        const dt  = k === 'cal_dt'  ? v : p.cal_dt
+        const per = k === 'cal_per' ? v : p.cal_per
+        const val = calcValidade(dt, per)
+        if (val) next.cal_val = val
+      }
+      return next
+    })
   }
 
   async function save() {
@@ -119,6 +184,44 @@ export default function EquipamentoModal({ open, onClose, equipamento }: Props) 
       }
     >
       <FormGrid>
+        {/* ── Cadastrar via certificado de calibração ── */}
+        {!equipamento?.id && (
+          <>
+            <FormSection>Importar via Certificado de Calibração</FormSection>
+            <div className="col-span-2 flex flex-col gap-2">
+              <div
+                className="border border-dashed border-white/15 rounded-lg p-4 text-center hover:border-gold/40 hover:bg-gold/5 transition-colors cursor-pointer"
+                onClick={() => certRef.current?.click()}
+              >
+                <Paperclip size={15} className="mx-auto mb-1 text-white/30" />
+                <p className="text-[11px] text-white/40">
+                  {certFileName
+                    ? <span className="text-white/70">{certFileName}</span>
+                    : 'Clique para anexar o certificado de calibração (PDF)'}
+                </p>
+                <input
+                  ref={certRef} type="file" accept=".pdf" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setCertFile(f); setCertFileName(f.name) } }}
+                />
+              </div>
+              <button
+                onClick={analyzeWithAI}
+                disabled={analyzing || !certFile}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-btn border border-teal/30 bg-teal/5 text-teal text-xs font-medium hover:bg-teal/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {analyzing
+                  ? <><Loader2 size={13} className="animate-spin" /> Analisando certificado...</>
+                  : <><Sparkles size={13} /> Preencher campos automaticamente via IA</>}
+              </button>
+              {certFile && !analyzing && (
+                <p className="text-[10px] text-white/30 text-center font-mono">
+                  Campos preenchidos pela IA podem ser editados abaixo
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
         <FormSection>Identificação</FormSection>
 
         <FormField label="TAG * (ex: 1528EMC)">
@@ -133,7 +236,7 @@ export default function EquipamentoModal({ open, onClose, equipamento }: Props) 
         <FormField label="Tipo Metrológico *">
           <select className={sel} value={f.tipo} onChange={e => set('tipo', e.target.value)}>
             <option value="">Selecionar...</option>
-            {TIPOS.map(t => <option key={t}>{t}</option>)}
+            {todosOsTipos.map(t => <option key={t}>{t}</option>)}
           </select>
         </FormField>
         <FormField label="Fabricante">

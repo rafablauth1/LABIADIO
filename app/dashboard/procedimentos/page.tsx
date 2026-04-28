@@ -1,16 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, FileSpreadsheet } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { Plus, FileSpreadsheet, Search } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ProcedimentoModal from '@/components/modals/ProcedimentoModal'
 import ImportarChecagemModal from '@/components/modals/ImportarChecagemModal'
 
-export default function ProcedimentosPage() {
+function ProcedimentosContent() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const deepQ = searchParams.get('q')
   const [items, setItems]         = useState<any[]>([])
   const [open, setOpen]           = useState(false)
   const [openExcel, setOpenExcel] = useState(false)
+  const [search, setSearch]       = useState(deepQ || '')
 
   async function load() {
     const { data } = await supabase.from('procedimentos').select('*').order('created_at', { ascending: false })
@@ -18,6 +22,13 @@ export default function ProcedimentosPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  const filtered = items.filter(p => !search ||
+    p.codigo?.toLowerCase().includes(search.toLowerCase()) ||
+    p.descricao?.toLowerCase().includes(search.toLowerCase()) ||
+    p.padroes?.toLowerCase().includes(search.toLowerCase()) ||
+    (p.normas || []).some((n: string) => n.toLowerCase().includes(search.toLowerCase()))
+  )
 
   return (
     <div className="space-y-4">
@@ -37,6 +48,16 @@ export default function ProcedimentosPage() {
       </div>
 
       <div className="card overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/5">
+          <Search size={12} className="text-white/30 flex-shrink-0" />
+          <input
+            className="flex-1 bg-transparent text-[11.5px] text-white placeholder:text-white/25 outline-none"
+            placeholder="Buscar por código, norma ou padrão..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && <button onClick={() => setSearch('')} className="text-white/30 hover:text-white/60 text-[10px]">✕</button>}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[11.5px]">
             <thead>
@@ -47,7 +68,7 @@ export default function ProcedimentosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {items.map((p: any) => (
+              {filtered.map((p: any) => (
                 <tr key={p.id} className="hover:bg-white/3 transition-colors group">
                   <td className="px-4 py-2.5 font-mono text-[10px] text-white/70">{p.codigo}</td>
                   <td className="px-4 py-2.5 text-white/50 text-[10px] max-w-[140px]">{(p.normas || []).join(', ') || '—'}</td>
@@ -78,4 +99,8 @@ export default function ProcedimentosPage() {
       <ImportarChecagemModal open={openExcel} onClose={() => setOpenExcel(false)} />
     </div>
   )
+}
+
+export default function ProcedimentosPage() {
+  return <Suspense fallback={null}><ProcedimentosContent /></Suspense>
 }
