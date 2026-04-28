@@ -1,6 +1,5 @@
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-// Fallback automático: se um modelo bater limite, tenta o próximo
 const MODELS = [
   process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash',
   'gemini-2.0-flash',
@@ -10,7 +9,7 @@ const MODELS = [
 async function tryModel(model: string, apiKey: string, body: string): Promise<string | null> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
 
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
 
     if (res.ok) {
@@ -21,15 +20,15 @@ async function tryModel(model: string, apiKey: string, body: string): Promise<st
           ?? ''
     }
 
-    if (res.status === 429) return null   // cota esgotada — tenta próximo modelo
-
-    if (res.status === 503 && attempt === 0) {
-      await sleep(4000)
-      continue
+    // 429 ou 503 → sinaliza para tentar o próximo modelo
+    if (res.status === 429) return null
+    if (res.status === 503) {
+      if (attempt < 2) { await sleep(6000 * (attempt + 1)); continue }
+      return null  // após 3 tentativas, tenta próximo modelo
     }
 
-    const err = await res.json().catch(() => ({}))
-    throw new Error(`Gemini API error ${res.status}: ${err?.error?.message || res.statusText}`)
+    // outro erro → loga mas não interrompe o fallback
+    return null
   }
 
   return null
@@ -50,8 +49,10 @@ export async function analyzeWithGemini(pdfBase64: string, prompt: string): Prom
   for (const model of MODELS) {
     const result = await tryModel(model, apiKey, body)
     if (result !== null) return result
-    // cota esgotada neste modelo → tenta o próximo imediatamente
   }
 
-  throw new Error('Gemini: cota esgotada em todos os modelos disponíveis. Tente novamente amanhã ou gere uma nova chave em aistudio.google.com.')
+  throw new Error(
+    'Serviço de IA indisponível no momento. Todos os modelos retornaram erro. ' +
+    'Aguarde alguns minutos e tente novamente.'
+  )
 }
