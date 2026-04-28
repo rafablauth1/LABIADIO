@@ -21,7 +21,7 @@ export async function uploadBlob(
 ): Promise<void> {
   const client = getClient()
   const container = client.getContainerClient(CONTAINER)
-  await container.createIfNotExists({ access: 'private' })
+  await container.createIfNotExists()
   const blob = container.getBlockBlobClient(path)
   await blob.uploadData(buffer, {
     blobHTTPHeaders: { blobContentType: contentType },
