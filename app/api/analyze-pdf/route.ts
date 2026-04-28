@@ -2,14 +2,35 @@ import { NextRequest, NextResponse } from 'next/server'
 import { analyzeDocument } from '@/lib/ai'
 
 const PROMPTS: Record<string, string> = {
-  cert: `Analise este certificado de calibração e extraia as seguintes informações em JSON:
+  cert: `Analise este certificado de calibração e extraia as informações em JSON.
+
 {
   "num": "número do certificado",
   "lab": "laboratório emissor (nome completo)",
   "emissao": "data de emissão no formato YYYY-MM-DD",
-  "acred": "número de acreditação do laboratório (ex: CRL 0001)"
+  "acred": "número de acreditação do laboratório (ex: CRL 0001)",
+  "grandeza": "grandeza medida (ex: Tensão CA, Potência RF, Frequência, Corrente)",
+  "unidade": "símbolo da unidade principal (ex: V, dBm, Hz, A, Ω, Pa)",
+  "tabela": [
+    {
+      "nominal": 1.0,
+      "medido": 1.0023,
+      "erro": 0.0023,
+      "correcao": -0.0023,
+      "incerteza": 0.005
+    }
+  ]
 }
-Retorne APENAS o JSON válido, sem texto adicional.`,
+
+Regras para a tabela:
+- erro = medido − nominal (com sinal)
+- correcao = nominal − medido = −erro (com sinal)
+- incerteza é a incerteza expandida U (k=2) da linha, se indicada no documento — omita o campo se não houver
+- Inclua TODOS os pontos de calibração presentes no certificado
+- Se o certificado não apresentar tabela de pontos medidos, retorne "tabela": []
+- Converta todos os valores numéricos para número (não string)
+
+Retorne APENAS o JSON válido, sem markdown, sem texto adicional.`,
 
   manual: `Analise este manual técnico e extraia as seguintes informações em JSON:
 {
