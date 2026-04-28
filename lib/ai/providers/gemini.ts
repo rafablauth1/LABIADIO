@@ -1,7 +1,7 @@
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 export async function analyzeWithGemini(pdfBase64: string, prompt: string): Promise<string> {
-  const model = process.env.GOOGLE_AI_MODEL || 'gemini-2.5-flash'
+  const model = process.env.GOOGLE_AI_MODEL || 'gemini-2.0-flash'
   const apiKey = process.env.GOOGLE_API_KEY!
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
   const body = JSON.stringify({
@@ -20,7 +20,11 @@ export async function analyzeWithGemini(pdfBase64: string, prompt: string): Prom
 
     if (res.ok) {
       const data = await res.json()
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
+      const parts: any[] = data?.candidates?.[0]?.content?.parts || []
+      const text = parts.find((p: any) => p.text && !p.thought)?.text?.trim()
+                ?? parts[parts.length - 1]?.text?.trim()
+                ?? ''
+      return text
     }
 
     const err = await res.json().catch(() => ({}))

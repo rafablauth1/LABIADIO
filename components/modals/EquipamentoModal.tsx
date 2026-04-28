@@ -17,7 +17,7 @@ const TIPOS_PADRAO = [
   'Gerador EFT/Burst', 'Gerador de Surto', 'Gerador Dip/Interrupção',
   'Medidor de Energia', 'Variac / Fonte CA', 'Padrão de Frequência',
   'CDN / Acoplador', 'Divisor de Potência', 'Atenuador', 'LISN',
-  'Câmara Climática', 'Outro',
+  'Câmara Climática', 'TermoHigrômetro', 'Outro',
 ]
 
 function toForm(e: any) {
