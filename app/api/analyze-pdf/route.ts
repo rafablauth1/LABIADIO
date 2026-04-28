@@ -9,27 +9,45 @@ const PROMPTS: Record<string, string> = {
   "lab": "laboratório emissor (nome completo)",
   "emissao": "data de emissão no formato YYYY-MM-DD",
   "acred": "número de acreditação do laboratório (ex: CRL 0001)",
-  "grandeza": "grandeza medida (ex: Tensão CA, Potência RF, Frequência, Corrente)",
-  "unidade": "símbolo da unidade principal (ex: V, dBm, Hz, A, Ω, Pa)",
+  "grandeza": "grandeza medida (ex: Tensão CA, Potência RF, Frequência, Corrente CC)",
+  "unidade": "símbolo da unidade principal (ex: V, A, dBm, dB, Hz, Ω, Pa, W)",
   "tabela": [
     {
-      "nominal": 1.0,
-      "medido": 1.0023,
-      "erro": 0.0023,
-      "correcao": -0.0023,
-      "incerteza": 0.005
+      "fase": "L1",
+      "faixa": "100 V",
+      "frequencia": 50,
+      "nominal": 100.0,
+      "medido": 100.05,
+      "erro": 0.05,
+      "correcao": -0.05,
+      "incerteza": 0.10
     }
   ]
 }
 
-Regras para a tabela:
-- erro = medido − nominal (com sinal)
-- correcao = nominal − medido = −erro (com sinal)
-- incerteza é a incerteza expandida U (k=2) da linha, se indicada no documento — omita o campo se não houver
-- Inclua TODOS os pontos de calibração presentes no certificado
-- Se o certificado não apresentar tabela de pontos medidos, retorne "tabela": []
-- Converta todos os valores numéricos para número (não string)
+Regras críticas para a tabela:
+- Inclua TODOS os pontos de medição do certificado, sem exceção
+- erro = medido − nominal (com sinal — pode ser negativo)
+- correcao = nominal − medido = −erro (com sinal — pode ser negativo)
+- incerteza = incerteza expandida U (k=2) da linha — omita se não houver
+- Todos os valores numéricos devem ser números, não strings
+- Valores dB/dBm PODEM SER NEGATIVOS (ex: nominal: −30, medido: −29.85) — preserve o sinal
 
+Campo "fase" (omitir se não aplicável):
+  - Use exatamente: "L1", "L2", "L3" para trifásico
+  - Use "Fase 1", "Fase 2", "Fase 3" se o certificado usar essa nomenclatura
+  - Use "N" para neutro se presente
+
+Campo "faixa" (omitir se não aplicável):
+  - Inclua a faixa/range do instrumento para cada ponto (ex: "100 V", "10 A", "200 mV")
+  - Se todos os pontos estiverem na mesma faixa, inclua mesmo assim
+  - Para RF: use a faixa de potência (ex: "−50 a 0 dBm")
+
+Campo "frequencia" (omitir se não aplicável):
+  - Inclua em Hz para tensão CA, corrente CA, ou RF
+  - Ex: 50 para 50 Hz, 1000000 para 1 MHz, 1000000000 para 1 GHz
+
+Se o certificado não apresentar tabela de pontos medidos, retorne "tabela": [].
 Retorne APENAS o JSON válido, sem markdown, sem texto adicional.`,
 
   manual: `Analise este manual técnico e extraia as seguintes informações em JSON:

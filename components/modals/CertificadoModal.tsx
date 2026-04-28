@@ -81,11 +81,14 @@ export default function CertificadoModal({ open, onClose, certificado }: Props) 
       // preenche tabela de correção
       if (Array.isArray(data.tabela) && data.tabela.length > 0) {
         const pts: PontoCalib[] = data.tabela.map((row: any) => ({
-          nominal:   Number(row.nominal  ?? 0),
-          medido:    Number(row.medido   ?? 0),
-          erro:      Number(row.erro     ?? (row.medido - row.nominal)),
-          correcao:  Number(row.correcao ?? (row.nominal - row.medido)),
-          incerteza: row.incerteza != null ? Number(row.incerteza) : undefined,
+          fase:       row.fase       || undefined,
+          faixa:      row.faixa      || undefined,
+          frequencia: row.frequencia != null ? Number(row.frequencia) : undefined,
+          nominal:    Number(row.nominal  ?? 0),
+          medido:     Number(row.medido   ?? 0),
+          erro:       Number(row.erro     ?? (row.medido - row.nominal)),
+          correcao:   Number(row.correcao ?? (row.nominal - row.medido)),
+          incerteza:  row.incerteza != null ? Number(row.incerteza) : undefined,
         }))
         setPontos(pts)
         setGrandeza(data.grandeza || '')
