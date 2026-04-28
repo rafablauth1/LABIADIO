@@ -8,11 +8,11 @@ interface Msg { role: 'user' | 'model'; text: string }
 
 const SUGGESTIONS = [
   'Quais equipamentos estão vencidos?',
+  'O que exige a IEC 61000-4-2?',
+  'Explique rastreabilidade metrológica',
+  'Quais são os níveis de severidade do EFT?',
   'Status do 1528EMC',
-  'Equipamentos que vencem em 30 dias',
-  'Qual norma cobre ESD?',
-  'Condições ambientais recentes',
-  'Listar todas as ITs',
+  'O que é checagem intermediária?',
 ]
 
 export default function Chatbot() {
