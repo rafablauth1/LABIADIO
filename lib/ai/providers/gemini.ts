@@ -3,8 +3,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 // Fallback automático: se um modelo bater limite, tenta o próximo
 const MODELS = [
   process.env.GOOGLE_AI_MODEL || 'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash-8b-latest',
 ]
 
 async function tryModel(model: string, apiKey: string, body: string): Promise<string | null> {
