@@ -45,8 +45,17 @@ export default function CertificadoModal({ open, onClose, certificado }: Props) 
         obs:      certificado?.obs         || '',
       })
       setFile(null); setFileName(null)
-      setPontos([]); setGrandeza(''); setUnidade('')
-      setTab('dados')
+      // carrega tabela de correção salva anteriormente
+      const ia = certificado?.analise_ia as any
+      if (ia?.pontos?.length) {
+        setPontos(ia.pontos)
+        setGrandeza(ia.grandeza || '')
+        setUnidade(ia.unidade  || '')
+        setTab('correcao')
+      } else {
+        setPontos([]); setGrandeza(''); setUnidade('')
+        setTab('dados')
+      }
     }
   }, [open, certificado])
 
@@ -112,7 +121,7 @@ export default function CertificadoModal({ open, onClose, certificado }: Props) 
       if (!pdfPath) { setSaving(false); return }
     }
 
-    const payload = {
+    const payload: Record<string, any> = {
       numero:      f.num,
       equip_id:    f.equip_id,
       laboratorio: f.lab    || null,
@@ -120,6 +129,9 @@ export default function CertificadoModal({ open, onClose, certificado }: Props) 
       acreditacao: f.acred  || null,
       obs:         f.obs    || null,
       pdf_path:    pdfPath,
+    }
+    if (pontos.length > 0) {
+      payload.analise_ia = { grandeza, unidade, pontos }
     }
 
     let error

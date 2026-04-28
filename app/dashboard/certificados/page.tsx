@@ -19,6 +19,7 @@ function CertificadosContent() {
   const [tab, setTab] = useState<'certs' | 'period'>('certs')
   const [items, setItems] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [selected, setSelected] = useState<any>(null)
   const [search, setSearch] = useState(deepQ || '')
 
   async function load() {
@@ -41,7 +42,7 @@ function CertificadosContent() {
           <p className="font-mono text-[9px] tracking-[2.5px] text-gold uppercase mb-1">Documentação</p>
           <h1 className="font-display font-bold text-2xl text-white">Certificados de Calibração</h1>
         </div>
-        <button className="btn-primary text-xs" onClick={() => setOpen(true)}>
+        <button className="btn-primary text-xs" onClick={() => { setSelected(null); setOpen(true) }}>
           <Plus size={13} /> Registrar
         </button>
       </div>
@@ -86,7 +87,7 @@ function CertificadosContent() {
                     <td className="px-4 py-2.5 font-mono text-[10px] text-white/50">{fmt(c.emissao)}</td>
                     <td className="px-4 py-2.5 text-white/40 font-mono text-[10px]">{c.acreditacao || '—'}</td>
                     <td className="px-4 py-2.5"><span className="badge-success text-[9px]">VÁLIDO</span></td>
-                    <td className="px-4 py-2.5"><button className="text-white/25 hover:text-teal transition-colors font-mono text-[10px]">Ver →</button></td>
+                    <td className="px-4 py-2.5"><button onClick={() => { setSelected(c); setOpen(true) }} className="text-white/25 hover:text-teal transition-colors font-mono text-[10px]">Ver →</button></td>
                   </tr>
                 ))}
                 {items.length === 0 && (
@@ -123,7 +124,7 @@ function CertificadosContent() {
         </>
       )}
 
-      <CertificadoModal open={open} onClose={() => { setOpen(false); load() }} />
+      <CertificadoModal open={open} onClose={() => { setOpen(false); setSelected(null); load() }} certificado={selected} />
     </div>
   )
 }
