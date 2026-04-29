@@ -19,7 +19,7 @@ function injectPageBreaks(html: string): string {
   // page-break antes de <p> que contenha somente <img>
   html = html.replace(
     /<p>(\s*<img [^>]*>\s*)<\/p>/g,
-    '<p style="page-break-before:always;text-align:center;margin:0">$1</p>',
+    '<p style="page-break-before:always;text-align:center;margin:10px auto;page-break-inside:avoid">$1</p>',
   )
 
   // tabelas não partem no meio
@@ -39,9 +39,18 @@ export async function POST(req: NextRequest) {
     const result = await mammoth.convertToHtml(
       { buffer },
       {
-        convertImage: mammoth.images.imgElement(async (img) => {
-          const base64 = await img.read('base64') as string
-          return { src: `data:${img.contentType};base64,${base64}` }
+        convertImage: mammoth.images.imgElement(function(img) {
+          return (img.read() as Promise<Buffer>).then(function(buf: Buffer) {
+            const base64 = Buffer.from(buf).toString('base64')
+            const type   = img.contentType || 'image/png'
+            if (type.includes('wmf') || type.includes('emf')) {
+              console.warn('[parse-docx] imagem WMF/EMF — pode não renderizar no browser:', type)
+            }
+            return {
+              src:   `data:${type};base64,${base64}`,
+              style: 'max-width:170mm;width:auto;height:auto;display:block;margin:10px auto;page-break-inside:avoid',
+            }
+          })
         }),
       },
     )
