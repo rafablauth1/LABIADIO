@@ -569,17 +569,7 @@ export default function Cispr15RelatorioPage() {
                             Figura {figNum} – Amostra ensaiada
                           </p>
                         </>
-                      ) : (
-                        <div className="no-print" style={{
-                          width: '150mm', height: '75mm',
-                          border: '1.5px dashed #ccc',
-                          borderRadius: 4,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: '#bbb', fontSize: '8pt',
-                        }}>
-                          Figura {figNum} – sem foto
-                        </div>
-                      )}
+                      ) : null}
                     </div>
                   )
                 })}
