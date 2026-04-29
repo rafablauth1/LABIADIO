@@ -20,14 +20,19 @@ async function tryModel(model: string, apiKey: string, body: string): Promise<st
           ?? ''
     }
 
-    // 429 ou 503 → sinaliza para tentar o próximo modelo
-    if (res.status === 429) return null
+    const errBody = await res.text().catch(() => '')
+    console.error(`[gemini] ${model} attempt ${attempt + 1} → HTTP ${res.status}:`, errBody.slice(0, 300))
+
+    if (res.status === 429) {
+      if (attempt < 2) { await sleep(4000 * (attempt + 1)); continue }
+      return null
+    }
     if (res.status === 503) {
       if (attempt < 2) { await sleep(6000 * (attempt + 1)); continue }
-      return null  // após 3 tentativas, tenta próximo modelo
+      return null
     }
 
-    // outro erro → loga mas não interrompe o fallback
+    // 404 = modelo não encontrado, 400 = request inválido → tenta próximo
     return null
   }
 

@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Relatório CISPR 15 — LABELO/PUCRS</title>
+<style>
+/* ════════════════════════════════════════════════════════════
+   TELA — Interface de preenchimento
+════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:#f0f2f5;color:#222;}
+.app{display:flex;height:100vh;overflow:hidden;}
+
+/* Painel esquerdo — formulário */
+.form-panel{
+  width:380px;min-width:380px;
+  background:#1a2338;overflow-y:auto;
+  border-right:1px solid rgba(255,255,255,.08);
+  scrollbar-width:thin;scrollbar-color:#2d3f50 transparent;
+}
+.form-panel::-webkit-scrollbar{width:5px;}
+.form-panel::-webkit-scrollbar-thumb{background:#2d3f50;}
+.form-logo{
+  padding:16px 18px 14px;
+  background:#0d1420;border-bottom:1px solid rgba(255,255,255,.07);
+  display:flex;align-items:center;gap:10px;
+}
+.form-logo-icon{
+  width:32px;height:32px;border-radius:8px;
+  background:linear-gradient(135deg,#e8b94b,#c9950e);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.form-logo-icon svg{width:18px;height:18px;}
+.form-logo-text{font-size:14px;font-weight:700;color:#fff;letter-spacing:.5px;}
+.form-logo-text span{color:#e8b94b;}
+.form-logo-sub{font-size:8px;color:rgba(255,255,255,.3);letter-spacing:1.5px;margin-top:1px;}
+
+.form-section{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);}
+.form-section-title{
+  font-size:8.5px;font-weight:700;letter-spacing:2px;
+  color:#e8b94b;text-transform:uppercase;margin-bottom:10px;
+}
+.frow{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+.frow label{font-size:7.5px;letter-spacing:1.5px;color:rgba(255,255,255,.35);text-transform:uppercase;}
+.frow input,.frow textarea,.frow select{
+  background:#0d1420;border:1px solid rgba(255,255,255,.1);border-radius:6px;
+  color:#e8b94b;padding:7px 10px;font-size:12px;font-family:Arial,sans-serif;
+  outline:none;transition:border-color .15s;
+}
+.frow input:focus,.frow textarea:focus{border-color:#e8b94b;}
+.frow textarea{resize:vertical;min-height:54px;}
+.frow select option{background:#141b28;color:#e8b94b;}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+
+/* Upload área */
+.upload-area{
+  background:#0d1420;border:1.5px dashed rgba(255,255,255,.15);
+  border-radius:8px;padding:12px;text-align:center;cursor:pointer;
+  transition:border-color .15s;margin-bottom:6px;
+}
+.upload-area:hover{border-color:#e8b94b;}
+.upload-area input{display:none;}
+.upload-area p{font-size:10.5px;color:rgba(255,255,255,.35);}
+.upload-area span{color:#e8b94b;font-weight:600;}
+.upload-thumb{
+  display:flex;align-items:center;gap:8px;
+  background:#1a2338;border:1px solid rgba(255,255,255,.1);
+  border-radius:6px;padding:6px 10px;margin-bottom:5px;
+}
+.upload-thumb img{width:48px;height:36px;object-fit:cover;border-radius:4px;}
+.upload-thumb .thumb-info{flex:1;min-width:0;}
+.upload-thumb .thumb-name{font-size:10px;color:#e8b94b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.upload-thumb .thumb-label{font-size:9px;color:rgba(255,255,255,.3);}
+.upload-thumb button{background:none;border:none;color:rgba(255,255,255,.25);cursor:pointer;font-size:15px;}
+.upload-thumb button:hover{color:#ef4444;}
+
+/* Tabela de picos no formulário */
+.peaks-mini-header{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;
+}
+.peaks-mini-label{font-size:8.5px;color:rgba(255,255,255,.4);letter-spacing:.8px;}
+.btn-add{
+  font-size:9px;padding:3px 9px;background:rgba(34,211,200,.1);
+  color:#22d3c8;border:1px solid rgba(34,211,200,.2);border-radius:20px;cursor:pointer;
+}
+.peaks-mini-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:6px;}
+.peaks-mini-table th{
+  background:rgba(0,0,0,.3);color:rgba(255,255,255,.3);
+  padding:4px 4px;text-align:center;font-size:7.5px;letter-spacing:.8px;
+}
+.peaks-mini-table td{padding:2px 2px;text-align:center;}
+.peaks-mini-table input{
+  width:100%;background:rgba(0,0,0,.3);border:none;
+  color:#e8b94b;text-align:center;font-size:9px;padding:3px 2px;border-radius:3px;
+  font-family:'Courier New',monospace;
+}
+.peaks-mini-table input:focus{outline:1px solid #e8b94b;}
+.peaks-mini-table select{
+  background:rgba(0,0,0,.3);border:none;color:#e8b94b;font-size:9px;padding:3px 2px;border-radius:3px;width:100%;
+}
+.check-none{display:flex;align-items:center;gap:5px;margin-bottom:8px;}
+.check-none input{accent-color:#e8b94b;}
+.check-none span{font-size:10px;color:rgba(255,255,255,.35);}
+
+/* Ações */
+.form-actions{padding:14px 16px;}
+.btn-preview{
+  width:100%;padding:11px;background:linear-gradient(135deg,#e8b94b,#c9950e);
+  color:#0d1420;font-weight:700;font-size:13px;border:none;border-radius:9px;
+  cursor:pointer;transition:filter .15s;margin-bottom:8px;
+}
+.btn-preview:hover{filter:brightness(1.1);}
+.btn-save,.btn-load{
+  width:100%;padding:8px;background:#1f2a40;color:rgba(255,255,255,.6);
+  font-size:11px;border:1px solid rgba(255,255,255,.1);border-radius:7px;cursor:pointer;margin-bottom:5px;
+}
+
+/* Painel direito — preview */
+.preview-panel{
+  flex:1;background:#d0d0d0;overflow-y:auto;
+  display:flex;flex-direction:column;align-items:center;padding:20px;
+}
+.preview-toolbar{
+  display:flex;align-items:center;gap:10px;margin-bottom:16px;
+  background:#1a2338;border-radius:8px;padding:8px 16px;width:100%;max-width:820px;
+}
+.preview-toolbar span{color:rgba(255,255,255,.4);font-size:11px;flex:1;}
+.btn-print{
+  padding:7px 18px;background:linear-gradient(135deg,#e8b94b,#c9950e);
+  color:#0d1420;font-weight:700;font-size:11px;border:none;border-radius:7px;cursor:pointer;
+}
+.btn-edit{
+  padding:7px 14px;background:#1f2a40;color:rgba(255,255,255,.6);
+  font-size:11px;border:1px solid rgba(255,255,255,.1);border-radius:7px;cursor:pointer;
+}
+
+/* ════════════════════════════════════════════════════════════
+   RELATÓRIO — estilos do documento (tela e impressão)
+════════════════════════════════════════════════════════════ */
+.relatorio{
+  width:210mm;background:white;
+  box-shadow:0 4px 24px rgba(0,0,0,.3);
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:8.5pt;color:#000;
+  line-height:1.35;
+}
+
+/* Cabeçalho */
+.rel-header{
+  border-bottom:2px solid #003366;
+  padding:0;
+}
+.rel-header-inner{
+  display:flex;align-items:stretch;
+}
+.rel-header-logo-area{
+  width:50px;background:#003366;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:6px;
+}
+.rel-header-logo-area .logo-txt{
+  color:white;font-size:7pt;font-weight:700;
+  writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);
+  letter-spacing:.5px;
+}
+.rel-header-mid{flex:1;padding:6px 10px;border-left:1px solid #ccc;border-right:1px solid #ccc;}
+.rel-header-mid .uni{font-size:8pt;font-weight:700;color:#003366;}
+.rel-header-mid .lab{font-size:7.5pt;color:#333;}
+.rel-header-right{width:140px;flex-shrink:0;padding:6px;display:flex;flex-direction:column;justify-content:center;}
+.rel-header-right .re-label{font-size:7pt;color:#666;}
+.rel-header-right .re-num{font-size:10pt;font-weight:700;color:#003366;}
+.acred-bar{
+  background:#003366;color:white;font-size:7pt;
+  text-align:center;padding:3px 8px;
+}
+
+/* Título da amostra */
+.rel-title-block{text-align:center;padding:8px 14mm;}
+.rel-title-block .amostra-title{font-size:11pt;font-weight:700;}
+.rel-title-block .periodo{font-size:8.5pt;color:#333;margin-top:3px;}
+.rel-title-block .emissao{font-size:8.5pt;color:#333;margin-top:1px;}
+
+/* Cabeçalho páginas seguintes */
+.pg-header{
+  display:flex;border:1px solid #ccc;margin:0 0 4px 0;
+}
+.pg-header-mid{flex:1;padding:4px 8px;border-right:1px solid #ccc;}
+.pg-header-mid .acred-small{font-size:7pt;color:#444;}
+.pg-header-right{width:140px;flex-shrink:0;padding:4px 8px;text-align:right;}
+.pg-header-right .re-label{font-size:6.5pt;color:#666;}
+.pg-header-right .re-num{font-size:8.5pt;font-weight:700;color:#003366;}
+
+/* Corpo */
+.rel-body{padding:0 14mm 10mm;}
+
+/* Seção */
+.sec-header{
+  background:#003366;color:white;
+  font-size:8.5pt;font-weight:700;padding:4px 8px;margin:8px 0 5px;
+}
+
+/* Texto */
+.rel-p{margin-bottom:4px;font-size:8.5pt;text-align:justify;}
+.rel-p.indent{margin-left:15px;}
+.rel-p b,.rel-p strong{color:#000;}
+.rel-label{font-weight:700;font-size:8.5pt;}
+
+/* Tabelas do relatório */
+.rel-table{width:100%;border-collapse:collapse;margin-bottom:5px;font-size:8pt;}
+.rel-table th{
+  background:#003366;color:white;
+  padding:4px 6px;text-align:center;font-size:7.5pt;
+  border:1px solid #003366;
+}
+.rel-table td{
+  padding:3px 6px;text-align:center;border:1px solid #ccc;font-size:8pt;
+}
+.rel-table tr:nth-child(even) td{background:#f5f8ff;}
+.rel-table .nota{font-size:7pt;color:#555;text-align:left;border:none;padding:2px 0;}
+.rel-table .status-pass{color:#1a7a4a;font-weight:700;}
+.rel-table .status-fail{color:#c0392b;font-weight:700;}
+.rel-table .section-row td{background:#e8eef5;font-weight:700;text-align:left;color:#003366;}
+.rel-table .span-col{text-align:left;}
+
+/* KV table */
+.kv-table{width:100%;border-collapse:collapse;margin-bottom:6px;}
+.kv-table td{padding:3px 6px;border:1px solid #ccc;font-size:8.5pt;}
+.kv-table tr:nth-child(even) td{background:#f5f8ff;}
+
+/* Resultado */
+.resultado-box{
+  border:2px solid #003366;padding:8px 12px;margin:8px 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.resultado-label{font-size:9pt;font-weight:700;color:#003366;}
+.resultado-val{font-size:13pt;font-weight:700;}
+.resultado-val.conforme{color:#1a7a4a;}
+.resultado-val.nao-conforme{color:#c0392b;}
+
+/* Imagens */
+.img-grid{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;}
+.img-item{text-align:center;}
+.img-item img{max-width:170px;max-height:140px;border:1px solid #ccc;}
+.img-item .fig-cap{font-size:7.5pt;color:#555;margin-top:3px;}
+
+/* Gráfico */
+.grafico-box{
+  border:1px solid #ccc;padding:4px;margin:6px 0;text-align:center;
+}
+.grafico-box img{max-width:100%;max-height:180px;object-fit:contain;}
+.grafico-box .grafico-title{font-size:8pt;font-weight:700;color:#003366;padding:3px 0 1px;}
+.grafico-placeholder{
+  height:100px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;
+  color:#aaa;font-size:9pt;border:1px dashed #ccc;
+}
+
+/* Rodapé */
+.rel-footer{
+  border-top:1px solid #003366;padding:4px 14mm;
+  font-size:7pt;color:#555;text-align:center;margin-top:6px;
+}
+
+/* Assinatura */
+.assinatura{margin-top:18mm;text-align:center;}
+.assinatura .linha{border-top:1px solid #000;width:60mm;margin:0 auto 4px;}
+.assinatura p{font-size:8.5pt;}
+
+/* Quebra de página manual */
+.page-break{border-bottom:3px dashed #aaa;margin:14px 0;padding-bottom:8px;}
+.page-break::after{content:'↓ Quebra de página';font-size:9px;color:#aaa;display:block;text-align:center;}
+
+/* ════════════════════════════════════════════════════════════
+   IMPRESSÃO
+════════════════════════════════════════════════════════════ */
+@media print {
+  body{background:white;}
+  .form-panel,.preview-toolbar{display:none!important;}
+  .preview-panel{background:white;padding:0;overflow:visible;}
+  .relatorio{width:100%;box-shadow:none;page-break-after:auto;}
+  .page-break{border:none;margin:0;padding:0;page-break-after:always;}
+  .page-break::after{display:none;}
+  @page{size:A4;margin:18mm 20mm 20mm 20mm;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══════════════════════════════════════════════════
+     PAINEL ESQUERDO — FORMULÁRIO
+════════════════════════════════════════════════════════ -->
+<div class="form-panel" id="form-panel">
+
+  <div class="form-logo">
+    <div class="form-logo-icon">
+      <svg viewBox="0 0 36 36" fill="none">
+        <rect x="4" y="15" width="28" height="3" rx="1.5" fill="rgba(11,14,20,0.4)"/>
+        <rect x="13" y="10" width="10" height="13" rx="2" fill="rgba(11,14,20,0.9)"/>
+        <line x1="12" y1="13" x2="12" y2="18" stroke="rgba(11,14,20,0.5)" stroke-width="1"/>
+        <line x1="24" y1="13" x2="24" y2="18" stroke="rgba(11,14,20,0.5)" stroke-width="1"/>
+        <line x1="18" y1="8" x2="18" y2="25" stroke="rgba(11,14,20,0.7)" stroke-width="1.5"/>
+        <circle cx="18" cy="16.5" r="2.5" fill="rgba(11,14,20,0.9)"/>
+      </svg>
+    </div>
+    <div>
+      <div class="form-logo-text">LABI<span>ADIO</span></div>
+      <div class="form-logo-sub">Relatório CISPR 15 · LABELO/PUCRS</div>
+    </div>
+  </div>
+
+  <!-- IDENTIFICAÇÃO -->
+  <div class="form-section">
+    <div class="form-section-title">Identificação do Relatório</div>
+    <div class="frow3">
+      <div class="frow"><label>Nº EMC</label><input id="f-num" placeholder="0822" value="0822"/></div>
+      <div class="frow"><label>Ano</label><input id="f-ano" placeholder="2026" value="2026"/></div>
+      <div class="frow"><label>Protocolo</label><input id="f-proto" placeholder="026031535"/></div>
+    </div>
+    <div class="frow2">
+      <div class="frow"><label>Início ensaios</label><input type="date" id="f-ini" value="2026-03-23"/></div>
+      <div class="frow"><label>Fim ensaios</label><input type="date" id="f-fim" value="2026-03-26"/></div>
+    </div>
+    <div class="frow"><label>Data de emissão</label><input type="date" id="f-emissao" value="2026-03-27"/></div>
+  </div>
+
+  <!-- CLIENTE -->
+  <div class="form-section">
+    <div class="form-section-title">Cliente</div>
+    <div class="frow"><label>Nome / Razão Social</label><input id="f-cli" placeholder="CEB Iluminação Pública..."/></div>
+    <div class="frow"><label>Endereço</label><textarea id="f-end" rows="3" placeholder="Rua, número, cidade..."></textarea></div>
+  </div>
+
+  <!-- AMOSTRA -->
+  <div class="form-section">
+    <div class="form-section-title">Amostra</div>
+    <div class="frow2">
+      <div class="frow"><label>Fabricante</label><input id="f-fab" placeholder="TRADETEK"/></div>
+      <div class="frow"><label>Modelo</label><input id="f-mod" placeholder="AGN7120D4"/></div>
+    </div>
+    <div class="frow2">
+      <div class="frow"><label>Nº de série</label><input id="f-serie" placeholder="000045"/></div>
+      <div class="frow"><label>Tensão alim.</label><input id="f-tensao" placeholder="90–305VAC"/></div>
+    </div>
+    <div class="frow2">
+      <div class="frow"><label>Potência nom.</label><input id="f-pot" placeholder="120W"/></div>
+      <div class="frow"><label>Orçamento</label><input id="f-orc" placeholder="887f"/></div>
+    </div>
+    <div class="frow"><label>Lacre</label><input id="f-lacre" placeholder="Amostra Recebida Lacrada"/></div>
+    <div class="frow"><label>Documentação da amostra</label><input id="f-doc-am" value="Embalagem com especificações"/></div>
+    <div class="frow"><label>Observações da amostra</label><textarea id="f-obs-am" rows="2">Os resultados deste relatório de ensaios apresentam itens conformes. Informações adicionais podem ser acessadas em Parte 2 – Resultados dos ensaios.</textarea></div>
+  </div>
+
+  <!-- CONDIÇÕES AMBIENTAIS -->
+  <div class="form-section">
+    <div class="form-section-title">Condições Ambientais</div>
+    <div class="frow3">
+      <div class="frow"><label>Temp. (°C)</label><input id="f-temp" value="20" style="width:100%"/></div>
+      <div class="frow"><label>±Tol.</label><input id="f-temp-tol" value="5" style="width:100%"/></div>
+      <div class="frow"><label>Tensão V</label><input id="f-tensao-e" value="220" style="width:100%"/></div>
+    </div>
+    <div class="frow2">
+      <div class="frow"><label>Umidade (%)</label><input id="f-umid" value="55"/></div>
+      <div class="frow"><label>±Tol.</label><input id="f-umid-tol" value="15"/></div>
+    </div>
+  </div>
+
+  <!-- CONDUZIDOS — FASE -->
+  <div class="form-section">
+    <div class="form-section-title">Conduzidos — FASE (Line 1)</div>
+    <div class="check-none">
+      <input type="checkbox" id="chk-fase-none" onchange="toggleNone('fase')"/>
+      <span>Nenhum pico detectado</span>
+    </div>
+    <div class="peaks-mini-header">
+      <div class="peaks-mini-label">PICOS DETECTADOS</div>
+      <button class="btn-add" onclick="addPeakCond('fase')">+ Pico</button>
+    </div>
+    <table class="peaks-mini-table" id="tbl-fase">
+      <thead><tr><th>MHz</th><th>Med</th><th>LMed</th><th>QP</th><th>LQP</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tbody-fase"></tbody>
+    </table>
+  </div>
+
+  <!-- CONDUZIDOS — NEUTRO -->
+  <div class="form-section">
+    <div class="form-section-title">Conduzidos — NEUTRO (Neutral)</div>
+    <div class="check-none">
+      <input type="checkbox" id="chk-neutro-none" onchange="toggleNone('neutro')"/>
+      <span>Nenhum pico detectado</span>
+    </div>
+    <div class="peaks-mini-header">
+      <div class="peaks-mini-label">PICOS DETECTADOS</div>
+      <button class="btn-add" onclick="addPeakCond('neutro')">+ Pico</button>
+    </div>
+    <table class="peaks-mini-table" id="tbl-neutro">
+      <thead><tr><th>MHz</th><th>Med</th><th>LMed</th><th>QP</th><th>LQP</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tbody-neutro"></tbody>
+    </table>
+  </div>
+
+  <!-- GRÁFICOS CONDUZIDOS -->
+  <div class="form-section">
+    <div class="form-section-title">Gráficos Conduzidos (Radimation)</div>
+    <div class="frow"><label>Gráfico FASE (Line 1) — PNG/JPG</label>
+      <div class="upload-area" onclick="document.getElementById('up-graf-fase').click()">
+        <input type="file" id="up-graf-fase" accept="image/*" onchange="loadImage(this,'prev-graf-fase','thumb-graf-fase')"/>
+        <p>📊 <span>Clique para anexar</span> o gráfico do Radimation</p>
+      </div>
+      <div id="thumb-graf-fase"></div>
+    </div>
+    <div class="frow"><label>Gráfico NEUTRO (Neutral) — PNG/JPG</label>
+      <div class="upload-area" onclick="document.getElementById('up-graf-neutro').click()">
+        <input type="file" id="up-graf-neutro" accept="image/*" onchange="loadImage(this,'prev-graf-neutro','thumb-graf-neutro')"/>
+        <p>📊 <span>Clique para anexar</span> o gráfico do Radimation</p>
+      </div>
+      <div id="thumb-graf-neutro"></div>
+    </div>
+  </div>
+
+  <!-- RADIADOS 9-30MHz -->
+  <div class="form-section">
+    <div class="form-section-title">Radiados 9 kHz – 30 MHz</div>
+    <div style="font-size:9.5px;color:rgba(255,255,255,.3);margin-bottom:8px;">Loop A, B, C</div>
+    <div class="check-none"><input type="checkbox" id="chk-loopA-none" checked onchange="toggleNone('loopA')"/><span>Loop A — Nenhum pico</span></div>
+    <div id="peaks-loopA-wrap" style="display:none;">
+      <div class="peaks-mini-header"><div class="peaks-mini-label">Loop A</div><button class="btn-add" onclick="addPeakRad('loopA')">+ Pico</button></div>
+      <table class="peaks-mini-table"><thead><tr><th>MHz</th><th>QP</th><th>Lim</th><th>Dif</th><th>Status</th><th></th></tr></thead><tbody id="tbody-loopA"></tbody></table>
+    </div>
+    <div class="check-none"><input type="checkbox" id="chk-loopB-none" checked onchange="toggleNone('loopB')"/><span>Loop B — Nenhum pico</span></div>
+    <div id="peaks-loopB-wrap" style="display:none;">
+      <div class="peaks-mini-header"><div class="peaks-mini-label">Loop B</div><button class="btn-add" onclick="addPeakRad('loopB')">+ Pico</button></div>
+      <table class="peaks-mini-table"><thead><tr><th>MHz</th><th>QP</th><th>Lim</th><th>Dif</th><th>Status</th><th></th></tr></thead><tbody id="tbody-loopB"></tbody></table>
+    </div>
+    <div class="check-none"><input type="checkbox" id="chk-loopC-none" checked onchange="toggleNone('loopC')"/><span>Loop C — Nenhum pico</span></div>
+    <div id="peaks-loopC-wrap" style="display:none;">
+      <div class="peaks-mini-header"><div class="peaks-mini-label">Loop C</div><button class="btn-add" onclick="addPeakRad('loopC')">+ Pico</button></div>
+      <table class="peaks-mini-table"><thead><tr><th>MHz</th><th>QP</th><th>Lim</th><th>Dif</th><th>Status</th><th></th></tr></thead><tbody id="tbody-loopC"></tbody></table>
+    </div>
+    <div class="frow" style="margin-top:8px;"><label>Gráfico Radiados 9-30 MHz — PNG/JPG</label>
+      <div class="upload-area" onclick="document.getElementById('up-graf-rad9').click()">
+        <input type="file" id="up-graf-rad9" accept="image/*" onchange="loadImage(this,'prev-graf-rad9','thumb-graf-rad9')"/>
+        <p>📊 <span>Clique para anexar</span></p>
+      </div>
+      <div id="thumb-graf-rad9"></div>
+    </div>
+  </div>
+
+  <!-- RADIADOS 30-300MHz -->
+  <div class="form-section">
+    <div class="form-section-title">Radiados 30 MHz – 300 MHz</div>
+    <div class="check-none"><input type="checkbox" id="chk-rad300-none" onchange="toggleNone('rad300')"/><span>Nenhum pico detectado</span></div>
+    <div class="peaks-mini-header"><div class="peaks-mini-label">PICOS DETECTADOS</div><button class="btn-add" onclick="addPeakRad('rad300')">+ Pico</button></div>
+    <table class="peaks-mini-table" id="tbl-rad300">
+      <thead><tr><th>MHz</th><th>QP</th><th>Lim</th><th>Dif</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tbody-rad300"></tbody>
+    </table>
+    <div class="frow" style="margin-top:8px;"><label>Gráfico Radiados 30-300 MHz — PNG/JPG</label>
+      <div class="upload-area" onclick="document.getElementById('up-graf-rad300').click()">
+        <input type="file" id="up-graf-rad300" accept="image/*" onchange="loadImage(this,'prev-graf-rad300','thumb-graf-rad300')"/>
+        <p>📊 <span>Clique para anexar</span></p>
+      </div>
+      <div id="thumb-graf-rad300"></div>
+    </div>
+  </div>
+
+  <!-- RESULTADO + FOTOS -->
+  <div class="form-section">
+    <div class="form-section-title">Resultado Geral</div>
+    <div class="frow">
+      <label>Resultado</label>
+      <select id="f-resultado">
+        <option value="CONFORME">✅ CONFORME</option>
+        <option value="NÃO CONFORME">❌ NÃO CONFORME</option>
+        <option value="PARCIALMENTE CONFORME">⚠ PARCIALMENTE CONFORME</option>
+      </select>
+    </div>
+    <div class="frow"><label>Observações finais adicionais</label>
+      <textarea id="f-obs-final" rows="2" placeholder="Observações específicas..."></textarea>
+    </div>
+  </div>
+
+  <!-- FOTOS DA AMOSTRA -->
+  <div class="form-section">
+    <div class="form-section-title">Fotos da Amostra</div>
+    <p style="font-size:9.5px;color:rgba(255,255,255,.3);margin-bottom:10px;">Figura 1 a 4 — igual ao relatório Word</p>
+    <div id="fotos-list"></div>
+    <div class="upload-area" onclick="document.getElementById('up-fotos').click()">
+      <input type="file" id="up-fotos" accept="image/*" multiple onchange="loadFotos(this)"/>
+      <p>📷 <span>Adicionar fotos</span> da amostra (múltiplas)</p>
+    </div>
+  </div>
+
+  <!-- AÇÕES -->
+  <div class="form-actions">
+    <button class="btn-preview" onclick="atualizarPreview()">👁 Atualizar Preview / Imprimir PDF</button>
+    <button class="btn-save" onclick="salvarJSON()">💾 Salvar dados (JSON)</button>
+    <button class="btn-load" onclick="document.getElementById('up-json').click()">📂 Carregar dados (JSON)
+      <input type="file" id="up-json" accept=".json" style="display:none" onchange="carregarJSON(this)"/>
+    </button>
+    <button class="btn-save" onclick="seedExemplo()" style="color:#e8b94b;border-color:rgba(232,185,75,.2);">📄 Carregar exemplo (0822/2026)</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAINEL DIREITO — PREVIEW DO RELATÓRIO
+════════════════════════════════════════════════════════ -->
+<div class="preview-panel" id="preview-panel">
+  <div class="preview-toolbar">
+    <span id="preview-status">👁 Preencha os campos e clique em "Atualizar Preview"</span>
+    <button class="btn-edit" onclick="window.scrollTo(0,0)">⇐ Formulário</button>
+    <button class="btn-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+  </div>
+  <div id="relatorio-output">
+    <!-- Conteúdo gerado pelo JS -->
+  </div>
+</div>
+</div>
+
+<!-- Imagens ocultas para preview (base64) -->
+<div id="img-store" style="display:none;"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// ESTADO
+// ════════════════════════════════════════════════════════════
+const imgs = {}; // {id: base64DataURL}
+const fotos = []; // [{name, src}]
+
+// ════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════
+function v(id){ return (document.getElementById(id)||{}).value||''; }
+function fmtDate(s){
+  if(!s) return '—';
+  const p=s.split('-');
+  return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:s;
+}
+function statusClass(s){
+  if(!s) return '';
+  return s.toLowerCase()==='pass'?'status-pass':s.toLowerCase()==='fail'?'status-fail':'';
+}
+
+// ════════════════════════════════════════════════════════════
+// PICOS
+// ════════════════════════════════════════════════════════════
+function addPeakCond(id){
+  const tbody=document.getElementById('tbody-'+id);
+  if(!tbody) return;
+  const n=tbody.querySelectorAll('tr').length+1;
+  const tr=document.createElement('tr');
+  tr.innerHTML=`
+    <td><input placeholder="0,241" style="width:48px"/></td>
+    <td><input placeholder="35,8" style="width:38px"/></td>
+    <td><input placeholder="52,1" style="width:38px"/></td>
+    <td><input placeholder="40,5" style="width:38px"/></td>
+    <td><input placeholder="62,1" style="width:38px"/></td>
+    <td><select style="width:52px"><option>Pass</option><option>Fail</option></select></td>
+    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:13px">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function addPeakRad(id){
+  const tbody=document.getElementById('tbody-'+id);
+  if(!tbody) return;
+  const tr=document.createElement('tr');
+  tr.innerHTML=`
+    <td><input placeholder="91,739" style="width:52px"/></td>
+    <td><input placeholder="53,5" style="width:38px"/></td>
+    <td><input placeholder="54,7" style="width:38px"/></td>
+    <td><input placeholder="-1,3" style="width:38px"/></td>
+    <td><select style="width:52px"><option>Pass</option><option>Fail</option></select></td>
+    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:13px">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function toggleNone(id){
+  const chk=document.getElementById('chk-'+id+'-none');
+  const wrap=document.getElementById('peaks-'+id+'-wrap');
+  if(wrap) wrap.style.display=chk.checked?'none':'block';
+}
+
+function getPeaksCond(id){
+  const chk=document.getElementById('chk-'+id+'-none');
+  if(chk&&chk.checked) return null;
+  const rows=[...document.querySelectorAll('#tbody-'+id+' tr')];
+  return rows.map((tr,i)=>{
+    const ins=[...tr.querySelectorAll('input,select')];
+    return{n:i+1,freq:ins[0]?.value||'',avg:ins[1]?.value||'',avgLim:ins[2]?.value||'',qp:ins[3]?.value||'',qpLim:ins[4]?.value||'',status:ins[5]?.value||'Pass'};
+  }).filter(r=>r.freq);
+}
+
+function getPeaksRad(id){
+  const chk=document.getElementById('chk-'+id+'-none');
+  if(chk&&chk.checked) return null;
+  const rows=[...document.querySelectorAll('#tbody-'+id+' tr')];
+  return rows.map((tr,i)=>{
+    const ins=[...tr.querySelectorAll('input,select')];
+    return{n:i+1,freq:ins[0]?.value||'',qp:ins[1]?.value||'',qpLim:ins[2]?.value||'',qpDif:ins[3]?.value||'',status:ins[4]?.value||'Pass'};
+  }).filter(r=>r.freq);
+}
+
+// ════════════════════════════════════════════════════════════
+// IMAGENS
+// ════════════════════════════════════════════════════════════
+function loadImage(input, previewId, thumbId){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    imgs[previewId]=e.target.result;
+    const thumb=document.getElementById(thumbId);
+    if(thumb){
+      thumb.innerHTML=`<div class="upload-thumb">
+        <img src="${e.target.result}" alt=""/>
+        <div class="thumb-info"><div class="thumb-name">${file.name}</div><div class="thumb-label">${(file.size/1024).toFixed(0)} KB</div></div>
+        <button onclick="delete imgs['${previewId}'];document.getElementById('${thumbId}').innerHTML='';document.getElementById('${input.id}').value=''">✕</button>
+      </div>`;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadFotos(input){
+  const files=[...input.files];
+  const listEl=document.getElementById('fotos-list');
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const idx=fotos.length;
+      fotos.push({name:file.name,src:e.target.result});
+      listEl.insertAdjacentHTML('beforeend',`<div class="upload-thumb" id="foto-${idx}">
+        <img src="${e.target.result}" alt=""/>
+        <div class="thumb-info"><div class="thumb-name">${file.name}</div><div class="thumb-label">Figura ${fotos.length}</div></div>
+        <button onclick="fotos.splice(${idx},1);document.getElementById('foto-${idx}').remove()">✕</button>
+      </div>`);
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+
+// ════════════════════════════════════════════════════════════
+// GERADOR HTML DO RELATÓRIO
+// ════════════════════════════════════════════════════════════
+function tabelaPicosCond(peaks, lisn){
+  if(peaks===null) return `<p class="rel-p indent"><i>Nenhum pico detectado</i></p>`;
+  if(!peaks||!peaks.length) return `<p class="rel-p indent"><i>Sem dados</i></p>`;
+
+  // Calcular diferença média automaticamente se não preenchida
+  const rows=peaks.map((p,i)=>{
+    const difAvg=p.avg&&p.avgLim?(parseFloat(p.avg.replace(',','.'))-parseFloat(p.avgLim.replace(',','.'))).toFixed(1):'—';
+    const difQP=p.qp&&p.qpLim?(parseFloat(p.qp.replace(',','.'))-parseFloat(p.qpLim.replace(',','.'))).toFixed(1):'—';
+    const sc=statusClass(p.status);
+    return `<tr>
+      <td>${p.n}</td><td>${p.freq}</td>
+      <td>${p.avg||'—'}</td><td>${p.avgLim||'—'}</td><td>${difAvg}</td>
+      <td>${p.qp||'—'}</td><td>${p.qpLim||'—'}</td><td>${difQP}</td>
+      <td class="${sc}">${p.status}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <p class="rel-p"><b>LISN: ${lisn}</b></p>
+  <p class="rel-p indent"><b>Picos Detectados:</b></p>
+  <table class="rel-table">
+    <thead><tr>
+      <th>Peak<br>Number</th><th>Frequency<br>(MHz)</th>
+      <th>Average<br>(dBµV)</th><th>Average<br>Limit</th><th>Average<br>Difference</th>
+      <th>Quasi-Peak<br>(dBµV)</th><th>QP<br>Limit</th><th>QP<br>Difference</th>
+      <th>Status</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function tabelaPicosRad(peaks){
+  if(peaks===null) return `<p class="rel-p indent"><i>Nenhum pico detectado</i></p>`;
+  if(!peaks||!peaks.length) return `<p class="rel-p indent"><i>Sem dados</i></p>`;
+  const rows=peaks.map(p=>{
+    const sc=statusClass(p.status);
+    return `<tr><td>${p.n}</td><td>${p.freq}</td><td>${p.qp||'—'}</td><td>${p.qpLim||'—'}</td><td>${p.qpDif||'—'}</td><td class="${sc}">${p.status}</td></tr>`;
+  }).join('');
+  return `
+  <p class="rel-p indent"><b>Picos Detectados:</b></p>
+  <table class="rel-table">
+    <thead><tr><th>Peak Number</th><th>Frequency (MHz)</th><th>Quasi-Peak (dBµV)</th><th>QP Limit (dBµV)</th><th>QP Difference</th><th>Status</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function graficoBox(title, imgKey){
+  const src=imgs[imgKey];
+  if(!src) return `<div class="grafico-box"><div class="grafico-title">${title}</div><div class="grafico-placeholder">[ Gráfico não anexado ]</div></div>`;
+  return `<div class="grafico-box"><div class="grafico-title">${title}</div><img src="${src}" alt="${title}"/></div>`;
+}
+
+function atualizarPreview(){
+  const numEmc=v('f-num')||'xxxx';
+  const ano=v('f-ano')||'2026';
+  const proto=v('f-proto')||'—';
+  const tensaoE=v('f-tensao-e')||'220';
+  const res=v('f-resultado')||'CONFORME';
+  const resClass=res.includes('NÃO')?'nao-conforme':'conforme';
+
+  const fasePeaks=getPeaksCond('fase');
+  const neutroPeaks=getPeaksCond('neutro');
+  const loopA=getPeaksRad('loopA');
+  const loopB=getPeaksRad('loopB');
+  const loopC=getPeaksRad('loopC');
+  const rad300=getPeaksRad('rad300');
+
+  const fotosHtml=fotos.length?`
+    <div class="sec-header">Fotos da amostra:</div>
+    <div class="img-grid">
+      ${fotos.map((f,i)=>`<div class="img-item"><img src="${f.src}" alt="Figura ${i+1}"/><div class="fig-cap">Figura ${i+1} – ${f.name.replace(/\.[^.]+$/,'')}</div></div>`).join('')}
+    </div>`:'';
+
+  const obsFinalExtra=v('f-obs-final');
+
+  const html=`
+<div class="relatorio" id="rel-doc">
+  <!-- ══ PÁGINA 1 ═══════════════════════════════════════════ -->
+  <!-- Cabeçalho principal -->
+  <div class="rel-header">
+    <div class="rel-header-inner">
+      <div class="rel-header-logo-area">
+        <span class="logo-txt">LABELO/PUCRS</span>
+      </div>
+      <div class="rel-header-mid">
+        <div class="uni">Pontifícia Universidade Católica do Rio Grande do Sul</div>
+        <div class="lab">LABELO - Laboratórios Especializados em Eletroeletrônica</div>
+        <div class="lab">Calibração e Ensaios</div>
+        <div class="lab">Rede Brasileira de Laboratórios de Ensaios</div>
+      </div>
+      <div class="rel-header-right">
+        <div class="re-label">Relatório de Ensaio</div>
+        <div class="re-num">Nº EMC ${numEmc}/${ano}</div>
+      </div>
+    </div>
+    <div class="acred-bar">Laboratório de Ensaio acreditado pela <strong>Cgcre</strong> de acordo com a <strong>ABNT NBR ISO/IEC 17025</strong>, sob o número <strong>CRL 0075</strong></div>
+  </div>
+
+  <div class="rel-title-block">
+    <div class="amostra-title">Luminária LED – ${v('f-mod')||'Modelo'} – ${v('f-fab')||'Fabricante'}</div>
+    <div class="periodo">Período de realização dos ensaios: ${fmtDate(v('f-ini'))} até ${fmtDate(v('f-fim'))}</div>
+    <div class="emissao">Data de emissão do relatório: ${fmtDate(v('f-emissao'))}</div>
+  </div>
+
+  <div class="rel-body">
+    <div class="sec-header">Parte 1 - Identificação e condições gerais</div>
+
+    <p class="rel-p"><b>1. Cliente:</b></p>
+    <p class="rel-p indent"><b>${v('f-cli')||'—'}</b></p>
+    <p class="rel-p indent">${(v('f-end')||'—').replace(/\n/g,'<br/>')}</p>
+
+    <p class="rel-p" style="margin-top:6px;"><b>2. Objeto ensaiado (amostra):</b></p>
+    <table class="kv-table">
+      <tr><td><b>Luminária LED</b></td><td>Tensão de alimentação: ${v('f-tensao')||'—'}</td></tr>
+      <tr><td>Fabricante: <b>${v('f-fab')||'—'}</b></td><td>Potência nominal: <b>${v('f-pot')||'—'}</b></td></tr>
+      <tr><td>Modelo: <b>${v('f-mod')||'—'}</b></td><td>Frequência de rede: 50/60Hz</td></tr>
+      <tr><td>Número de série: ${v('f-serie')||'—'}</td><td>Orçamento LABELO: ${v('f-orc')||'—'}</td></tr>
+      <tr><td>Lacre: ${v('f-lacre')||'—'}</td><td>Protocolo LABELO: ${proto}</td></tr>
+    </table>
+
+    <p class="rel-p"><b>2.1. Documentação que acompanha a amostra:</b></p>
+    <p class="rel-p indent">- ${v('f-doc-am')||'—'}</p>
+    <p class="rel-p" style="margin-top:4px;"><b>2.2. Observações:</b></p>
+    <p class="rel-p indent">- ${v('f-obs-am')||'—'}</p>
+
+    <p class="rel-p" style="margin-top:6px;"><b>3. Documento(s) normativo(s) utilizado(s):</b></p>
+    <p class="rel-p indent">- Portaria INMETRO nº 62, de 17 de fevereiro de 2022 - Regulamento Técnico da Qualidade e os Requisitos de Avaliação da Conformidade para Luminárias para a Iluminação Pública Viária - Consolidado.</p>
+    <p class="rel-p indent">- Associação Brasileira de Normas Técnicas. NBR IEC/CISPR 15/2014 - Limites e métodos de medição das radioperturbações características dos equipamentos elétricos de iluminação e similares. Rio de Janeiro, RJ, Brasil, 2014.</p>
+    <p class="rel-p" style="margin-top:4px;"><b>3.1 Documento(s) complementar(es):</b></p>
+    <p class="rel-p indent">Os documentos complementares abaixo indicados não fazem parte do escopo de acreditação deste laboratório.</p>
+    <p class="rel-p indent">- International Electrotechnical Commission. CISPR 16-4-2 - Second Edition/2011, Specification for radio disturbance and immunity measuring apparatus and methods – Part 4-2: Uncertainties, statistics and limit modeling – Uncertainty in EMC measurements, Geneva, Switzerland.</p>
+
+    <p class="rel-p" style="margin-top:6px;"><b>4. Condições ambientais:</b></p>
+    <p class="rel-p indent">Temperatura: ${v('f-temp')||'20'} °C ± ${v('f-temp-tol')||'5'} °C</p>
+    <p class="rel-p indent">Umidade Relativa: ${v('f-umid')||'55'} % ± ${v('f-umid-tol')||'15'} %</p>
+
+    <p class="rel-p" style="margin-top:6px;"><b>5. Observações:</b></p>
+    <p class="rel-p indent" style="text-align:justify;">A regra de decisão aplicada para a avaliação da conformidade do item de ensaio foi estabelecida conforme documentos normativos indicados no item 3 deste relatório e previamente contratados.</p>
+    <p class="rel-p indent" style="text-align:justify;">Itens dos documentos normativos de referência deste relatório não descritos com resultados não foram solicitados pelo requerente ou não fazem parte do escopo de acreditação do laboratório.</p>
+    <p class="rel-p indent" style="text-align:justify;">De acordo com o item 6.1.1.4.1.5 da Portaria INMETRO citada no item 3 da parte 1 o ensaio de interferência eletromagnética e rádio frequência foi conduzido na tensão nominal de ${tensaoE} V.</p>
+  </div>
+  <div class="rel-footer">Av. Ipiranga nº 6681, Prédio 30 Bloco A, Sala 210 – Partenon – CEP 90619-900 – Porto Alegre – RS – Brasil &nbsp;|&nbsp; Tel: (51) 3320 3551 &nbsp;|&nbsp; labelo@pucrs.br &nbsp;|&nbsp; www.labelo.com.br</div>
+
+  <!-- ══ QUEBRA ════════════════════════════════════════════ -->
+  <div class="page-break"></div>
+
+  <!-- ══ PÁGINAS DE RESULTADOS ══════════════════════════════ -->
+  <div class="rel-body" style="padding-top:8px;">
+    <!-- Cabeçalho p/ páginas seguintes -->
+    <div class="pg-header">
+      <div class="pg-header-mid"><div class="acred-small">LABELO/PUCRS &nbsp;|&nbsp; Laboratório de Ensaio acreditado pela Cgcre — ABNT NBR ISO/IEC 17025 — CRL 0075</div></div>
+      <div class="pg-header-right"><div class="re-label">Relatório de Ensaio</div><div class="re-num">Nº EMC ${numEmc}/${ano}</div></div>
+    </div>
+
+    <div class="sec-header">Parte 2 – Resultados dos ensaios</div>
+
+    <!-- 1. Conduzidos -->
+    <p class="rel-p" style="margin-top:6px;"><b>1. Método de medição das tensões de perturbação conduzidas (Item 8 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <p class="rel-p indent" style="text-align:justify;">A tensão de perturbação foi medida nos terminais de alimentação do sistema de iluminação.</p>
+    <p class="rel-p indent" style="text-align:justify;">Os terminais de saída da LISN e os terminais do equipamento em ensaio foram interligados por um cabo flexível com 3 condutores para conexão dos terminais de fase, neutro e terra.</p>
+    <p class="rel-p indent" style="text-align:justify;">A distância entre os terminais de saída da LISN e os terminais do equipamento em ensaio foi ajustada para 0,8 m.</p>
+    <p class="rel-p indent">As medições foram realizadas tanto no condutor fase como no condutor neutro, um de cada vez.</p>
+
+    <p class="rel-p" style="margin-top:5px;"><b>1.1 Limites (Item 4 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <p class="rel-p indent"><b>1.1.1. Terminais de alimentação (Item 4.3.1 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <table class="rel-table">
+      <thead><tr><th>FAIXA DE FREQUÊNCIA (MHz)</th><th>LIMITE DE QUASE PICO (dBµV)</th><th>LIMITE MÉDIO (dBµV)</th></tr></thead>
+      <tbody>
+        <tr><td>0,009 a 0,05</td><td>110</td><td>─</td></tr>
+        <tr><td>0,05 a 0,15</td><td>90 a 80</td><td>─</td></tr>
+        <tr><td>0,15 a 0,5</td><td>66 a 56</td><td>56 a 46</td></tr>
+        <tr><td>0,5 a 5</td><td>56</td><td>46</td></tr>
+        <tr><td>5 a 30</td><td>60</td><td>50</td></tr>
+        <tr><td class="nota" colspan="3">(1) - Na frequência de transição, o limite inferior se aplica &nbsp; (2) - O limite decresce linearmente com o logaritmo da frequência nas faixas de 50 a 150 kHz e de 150 a 500 kHz</td></tr>
+      </tbody>
+    </table>
+
+    <p class="rel-p indent"><b>1.1.2. Terminais de carga (Item 4.3.2 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <table class="rel-table">
+      <thead><tr><th>FAIXA DE FREQUÊNCIA (MHz)</th><th>LIMITE DE QUASE PICO (dBµV)</th><th>LIMITE MÉDIO (dBµV)</th></tr></thead>
+      <tbody>
+        <tr><td>0,15 a 0,5</td><td>80</td><td>70</td></tr>
+        <tr><td>0,5 a 30</td><td>74</td><td>64</td></tr>
+        <tr><td class="nota" colspan="3">(1) - Na frequência de transição, o limite inferior se aplica</td></tr>
+      </tbody>
+    </table>
+
+    <p class="rel-p indent"><b>1.1.3 Terminais de controle (Item 4.3.3 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <table class="rel-table">
+      <thead><tr><th>FAIXA DE FREQUÊNCIA (MHz)</th><th>LIMITE DE QUASE PICO (dBµV)</th><th>LIMITE MÉDIO (dBµV)</th></tr></thead>
+      <tbody>
+        <tr><td>0,15 a 0,5</td><td>84 a 74</td><td>74 a 64</td></tr>
+        <tr><td>0,5 a 30</td><td>74</td><td>64</td></tr>
+        <tr><td class="nota" colspan="3">(1) - Os limites diminuem linearmente com o logaritmo da frequência na faixa de 0,15 a 0,5 MHz</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Picos conduzidos -->
+    <p class="rel-p" style="margin-top:6px;"><b>Tensões de perturbação conduzidas nos terminais de alimentação em ${tensaoE} V</b></p>
+    ${tabelaPicosCond(fasePeaks,'Line 1')}
+    ${graficoBox(`Gráfico — Conduzidos FASE (Line 1) — ${tensaoE} V`,'prev-graf-fase')}
+    ${tabelaPicosCond(neutroPeaks,'Neutral')}
+    ${graficoBox(`Gráfico — Conduzidos NEUTRO (Neutral) — ${tensaoE} V`,'prev-graf-neutro')}
+
+    <!-- 2. Radiados 9-30MHz -->
+    <p class="rel-p" style="margin-top:8px;"><b>2. Método de medição das perturbações eletromagnéticas radiadas na faixa de 9 kHz a 30 MHz (Item 9 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <p class="rel-p indent" style="text-align:justify;">O equipamento em ensaio foi posicionado sobre uma mesa não condutora no centro da antena loop de 2.0 m.</p>
+    <p class="rel-p indent" style="text-align:justify;">O receptor de medição foi conectado à antena loop por cabo coaxial blindado e a seleção de cada loop das 3 direções do campo a ser medido foi efetuada através de uma chave coaxial.</p>
+    <p class="rel-p indent" style="text-align:justify;">As medições foram feitas na faixa de frequências de 9 kHz a 30 MHz. As medições de quase-pico foram realizadas apenas nas frequências em que as emissões de pico estavam próximas ou ultrapassaram a uma margem de 6 dB abaixo da linha de limite de quase-pico.</p>
+
+    <p class="rel-p" style="margin-top:4px;"><b>2.1 Limites (Item 4 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <p class="rel-p indent"><b>2.1.1. Faixa de 9 kHz a 30 MHz (Item 4.4.1 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <table class="rel-table">
+      <thead><tr><th>FAIXA DE FREQUÊNCIA (MHz)</th><th>LIMITE PARA ANTENA LOOP DE 2m (dBµA)</th></tr></thead>
+      <tbody>
+        <tr><td>0,009 a 0,07</td><td>88</td></tr>
+        <tr><td>0,07 a 0,15</td><td>88 a 58</td></tr>
+        <tr><td>0,15 a 3</td><td>58 a 22</td></tr>
+        <tr><td>3 a 30</td><td>22</td></tr>
+        <tr><td class="nota" colspan="2">(1) - Na frequência de transição, o limite inferior se aplica &nbsp; (2) - O limite decresce linearmente com o logaritmo da frequência nas faixas de 70 kHz a 150 kHz e de 150 kHz a 3 MHz</td></tr>
+      </tbody>
+    </table>
+
+    <p class="rel-p" style="margin-top:4px;"><b>Perturbações eletromagnéticas radiadas na faixa de 9 kHz a 30 MHz em ${tensaoE} V</b></p>
+    <p class="rel-p indent"><b>Loop A</b></p>
+    ${loopA===null?`<p class="rel-p indent"><i>Nenhum pico detectado</i></p>`:tabelaPicosRad(loopA)}
+    <p class="rel-p indent"><b>Loop B</b></p>
+    ${loopB===null?`<p class="rel-p indent"><i>Nenhum pico detectado</i></p>`:tabelaPicosRad(loopB)}
+    <p class="rel-p indent"><b>Loop C</b></p>
+    ${loopC===null?`<p class="rel-p indent"><i>Nenhum pico detectado</i></p>`:tabelaPicosRad(loopC)}
+    ${graficoBox('Gráfico — Radiados 9 kHz a 30 MHz','prev-graf-rad9')}
+
+    <!-- 3. Radiados 30-300MHz -->
+    <p class="rel-p" style="margin-top:8px;"><b>3. Método de medição das perturbações eletromagnéticas radiadas na faixa de 30 MHz a 300 MHz (Item 9 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <p class="rel-p indent" style="text-align:justify;">Ensaios na faixa de 30 MHz a 300 MHz podem ser realizados através das especificações do Anexo B e com os limites apresentados abaixo, conforme a norma.</p>
+    <p class="rel-p indent" style="text-align:justify;">O equipamento em ensaio foi colocado sobre blocos não condutivos, com altura de 10 cm, que por sua vez foram colocados em uma placa de metal ligada à terra, com dimensões pelo menos 20 cm maiores que o equipamento em ensaio.</p>
+    <p class="rel-p indent" style="text-align:justify;">O equipamento em ensaio foi ligado a uma rede de acoplamento/desacoplamento (CDN), montado sobre uma placa de metal conectada ao terra.</p>
+
+    <p class="rel-p" style="margin-top:4px;"><b>3.1 Faixa de 30 MHz a 300 MHz (Item 4.4.2 da Norma NBR IEC/CISPR 15/2014)</b></p>
+    <table class="rel-table">
+      <thead><tr><th>FAIXA DE FREQUÊNCIA (MHz)</th><th>LIMITE DE QUASE PICO (dBµV)</th></tr></thead>
+      <tbody>
+        <tr><td>30 a 100</td><td>64 a 54</td></tr>
+        <tr><td>100 a 230</td><td>54</td></tr>
+        <tr><td>230 a 300</td><td>61</td></tr>
+        <tr><td class="nota" colspan="2">(1) - Na frequência de transição, o limite inferior se aplica &nbsp; (2) - O limite decresce linearmente com o logaritmo da frequência na faixa de 30 a 100 MHz</td></tr>
+      </tbody>
+    </table>
+
+    <p class="rel-p" style="margin-top:4px;"><b>Perturbações eletromagnéticas radiadas na faixa de 30 MHz a 300 MHz em ${tensaoE} V</b></p>
+    ${tabelaPicosRad(rad300)}
+    ${graficoBox('Gráfico — Radiados 30 MHz a 300 MHz','prev-graf-rad300')}
+
+    <!-- Incertezas -->
+    <p class="rel-p" style="margin-top:8px;"><b>Incertezas de Medição (IM)</b></p>
+    <p class="rel-p indent" style="text-align:justify;">A incerteza expandida de medição relatada é declarada como a incerteza padrão de medição multiplicada pelo fator de abrangência "k", para uma distribuição de probabilidade tipo t-Student, com graus de liberdade efetivos (veff) correspondentes a um nível de confiança de aproximadamente 95%. A incerteza padrão da medição foi determinada de acordo com o "Guia para Expressão da Incerteza de Medição", Terceira Edição Brasileira.</p>
+    <table class="rel-table" style="margin-top:4px;">
+      <thead><tr><th>Item(ns) da norma</th><th>Mensurando</th><th>Faixa ou ponto de medição</th><th>Incerteza de medição</th><th>Fator de abrangência (k)</th></tr></thead>
+      <tbody>
+        <tr><td>4.3.1</td><td>Distúrbios conduzidos</td><td>9 kHz - 150 kHz</td><td>4,5 dB</td><td>2,00</td></tr>
+        <tr><td></td><td>Distúrbios conduzidos</td><td>150 kHz - 30 MHz</td><td>4,4 dB</td><td>2,00</td></tr>
+        <tr><td>4.4.1</td><td>Distúrbios radiados</td><td>9 kHz - 30 MHz</td><td>4,8 dB</td><td>2,00</td></tr>
+        <tr><td>4.4.2</td><td>Distúrbios radiados</td><td>30 MHz - 300 MHz</td><td>3,7 dB</td><td>2,00</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Fotos -->
+    ${fotosHtml}
+
+    <!-- Resultado -->
+    <div class="resultado-box" style="margin-top:10px;">
+      <div class="resultado-label">Resultado do Ensaio CISPR 15:</div>
+      <div class="resultado-val ${resClass}">${res}</div>
+    </div>
+    ${obsFinalExtra?`<p class="rel-p indent" style="margin-top:4px;">${obsFinalExtra}</p>`:''}
+
+    <!-- Obs finais padrão -->
+    <p class="rel-p" style="margin-top:8px;"><b>Observações finais:</b></p>
+    <p class="rel-p indent">- Este relatório de ensaio atende aos requisitos de acreditação da Cgcre, que avaliou a competência do laboratório.</p>
+    <p class="rel-p indent">- O fornecimento da amostra pelo cliente isenta o LABELO-PUCRS de responsabilidade quanto à sua representatividade em relação a lotes de fabricação e comercialização.</p>
+    <p class="rel-p indent">- O presente relatório de ensaio é medido exclusivamente para a amostra ensaiada, nas condições em que foram realizados os ensaios e não sendo extensivo a quaisquer lotes, mesmo que similares.</p>
+    <p class="rel-p indent">- A partir do momento em que a amostra é retirada do laboratório, esgota-se a possibilidade de contestação dos resultados ou mesmo de repetição dos ensaios, já que o LABELO deixa de ser responsável pela sua manutenção.</p>
+    <p class="rel-p indent">- É vedada a reprodução do presente relatório de ensaio, no todo ou em parte, sem prévia autorização do LABELO-PUCRS originada por solicitação formal do contratante.</p>
+    <p class="rel-p indent">- A Cgcre é signatária do Acordo de Reconhecimento Mútuo da ILAC (International Laboratory Accreditation Cooperation).</p>
+    <p class="rel-p indent">- A Cgcre é signatária do Acordo de Reconhecimento Mútuo da IAAC (InterAmerican Accreditation Cooperation).</p>
+    <p class="rel-p indent">- Os ensaios foram realizados nas instalações do LABELO-PUCRS.</p>
+
+    <div class="assinatura">
+      <div class="linha"></div>
+      <p>Signatário Autorizado</p>
+    </div>
+  </div>
+  <div class="rel-footer">Av. Ipiranga nº 6681, Prédio 30 Bloco A, Sala 210 – Partenon – CEP 90619-900 – Porto Alegre – RS – Brasil &nbsp;|&nbsp; Telefone: (51) 3320 3551 – Fax: (51) 3320 3883 &nbsp;|&nbsp; E-mail: labelo@pucrs.br – Website: www.labelo.com.br</div>
+</div>`;
+
+  document.getElementById('relatorio-output').innerHTML=html;
+  document.getElementById('preview-status').textContent=`✓ EMC ${numEmc}/${ano} — ${fmtDate(v('f-emissao'))} — Pronto para imprimir`;
+  document.getElementById('preview-panel').scrollTop=0;
+}
+
+// ════════════════════════════════════════════════════════════
+// SALVAR / CARREGAR JSON
+// ════════════════════════════════════════════════════════════
+function coletarDados(){
+  return{
+    relatorio:{nEmc:v('f-num'),ano:v('f-ano'),protocolo:v('f-proto'),dataInicio:v('f-ini'),dataFim:v('f-fim'),dataEmissao:v('f-emissao')},
+    cliente:{nome:v('f-cli'),endereco:v('f-end')},
+    amostra:{fabricante:v('f-fab'),modelo:v('f-mod'),serie:v('f-serie'),tensao:v('f-tensao'),potencia:v('f-pot'),orcamento:v('f-orc'),lacre:v('f-lacre'),docAmostra:v('f-doc-am'),obsAmostra:v('f-obs-am')},
+    ambiental:{temp:v('f-temp'),tempTol:v('f-temp-tol'),umid:v('f-umid'),umidTol:v('f-umid-tol'),tensaoEnsaio:v('f-tensao-e')},
+    conduzidos:{fase:getPeaksCond('fase'),neutro:getPeaksCond('neutro')},
+    radiados9_30:{loopA:getPeaksRad('loopA'),loopB:getPeaksRad('loopB'),loopC:getPeaksRad('loopC')},
+    radiados30_300:{peaks:getPeaksRad('rad300')},
+    resultado:{geral:v('f-resultado'),obs:v('f-obs-final')},
+  };
+}
+
+function salvarJSON(){
+  const d=coletarDados();
+  const n=`relatorio-EMC-${d.relatorio.nEmc||'x'}-${d.relatorio.ano||'2026'}.json`;
+  const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click();
+}
+
+function carregarJSON(input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      const rel=d.relatorio||{};
+      const am=d.amostra||{};
+      const amb=d.ambiental||{};
+      const cli=d.cliente||{};
+      const res=d.resultado||{};
+      if(rel.nEmc) document.getElementById('f-num').value=rel.nEmc;
+      if(rel.ano) document.getElementById('f-ano').value=rel.ano;
+      if(rel.protocolo) document.getElementById('f-proto').value=rel.protocolo;
+      if(rel.dataInicio) document.getElementById('f-ini').value=rel.dataInicio;
+      if(rel.dataFim) document.getElementById('f-fim').value=rel.dataFim;
+      if(rel.dataEmissao) document.getElementById('f-emissao').value=rel.dataEmissao;
+      if(cli.nome) document.getElementById('f-cli').value=cli.nome;
+      if(cli.endereco) document.getElementById('f-end').value=cli.endereco;
+      if(am.fabricante) document.getElementById('f-fab').value=am.fabricante;
+      if(am.modelo) document.getElementById('f-mod').value=am.modelo;
+      if(am.serie) document.getElementById('f-serie').value=am.serie;
+      if(am.tensao) document.getElementById('f-tensao').value=am.tensao;
+      if(am.potencia) document.getElementById('f-pot').value=am.potencia;
+      if(am.orcamento) document.getElementById('f-orc').value=am.orcamento;
+      if(am.lacre) document.getElementById('f-lacre').value=am.lacre;
+      if(am.docAmostra) document.getElementById('f-doc-am').value=am.docAmostra;
+      if(am.obsAmostra) document.getElementById('f-obs-am').value=am.obsAmostra;
+      if(amb.temp) document.getElementById('f-temp').value=amb.temp;
+      if(amb.tempTol) document.getElementById('f-temp-tol').value=amb.tempTol;
+      if(amb.umid) document.getElementById('f-umid').value=amb.umid;
+      if(amb.umidTol) document.getElementById('f-umid-tol').value=amb.umidTol;
+      if(amb.tensaoEnsaio) document.getElementById('f-tensao-e').value=amb.tensaoEnsaio;
+      if(res.obs) document.getElementById('f-obs-final').value=res.obs;
+      // Picos conduzidos
+      if(d.conduzidos){
+        if(d.conduzidos.fase===null){document.getElementById('chk-fase-none').checked=true;}
+        else if(d.conduzidos.fase){document.getElementById('chk-fase-none').checked=false;document.getElementById('tbody-fase').innerHTML='';d.conduzidos.fase.forEach(()=>addPeakCond('fase'));populatePeaksCond('fase',d.conduzidos.fase);}
+        if(d.conduzidos.neutro===null){document.getElementById('chk-neutro-none').checked=true;}
+        else if(d.conduzidos.neutro){document.getElementById('chk-neutro-none').checked=false;document.getElementById('tbody-neutro').innerHTML='';d.conduzidos.neutro.forEach(()=>addPeakCond('neutro'));populatePeaksCond('neutro',d.conduzidos.neutro);}
+      }
+      alert('✅ Dados carregados! Clique em "Atualizar Preview" para visualizar.');
+    }catch(e){alert('Erro ao carregar: '+e.message);}
+  };
+  r.readAsText(f);
+  input.value='';
+}
+
+function populatePeaksCond(id,peaks){
+  const rows=[...document.querySelectorAll('#tbody-'+id+' tr')];
+  peaks.forEach((p,i)=>{
+    if(!rows[i]) return;
+    const ins=[...rows[i].querySelectorAll('input,select')];
+    if(ins[0]) ins[0].value=p.freq||'';
+    if(ins[1]) ins[1].value=p.avg||'';
+    if(ins[2]) ins[2].value=p.avgLim||'';
+    if(ins[3]) ins[3].value=p.qp||'';
+    if(ins[4]) ins[4].value=p.qpLim||'';
+    if(ins[5]) ins[5].value=p.status||'Pass';
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// SEED EXEMPLO
+// ════════════════════════════════════════════════════════════
+function seedExemplo(){
+  document.getElementById('f-num').value='0822';
+  document.getElementById('f-ano').value='2026';
+  document.getElementById('f-proto').value='026031535';
+  document.getElementById('f-ini').value='2026-03-23';
+  document.getElementById('f-fim').value='2026-03-26';
+  document.getElementById('f-emissao').value='2026-03-27';
+  document.getElementById('f-cli').value='CEB Iluminação Pública e Serviços S.A. - CEB - IPES';
+  document.getElementById('f-end').value='SGAN Quadra 601, bloco H, Asa Norte, Salas 004SE a 006SE, Edifício ÍON\nBrasília – DF\nCEP: 70.830-010';
+  document.getElementById('f-fab').value='TRADETEK';
+  document.getElementById('f-mod').value='AGN7120D4';
+  document.getElementById('f-serie').value='000045';
+  document.getElementById('f-tensao').value='90 – 305VAC';
+  document.getElementById('f-pot').value='120W';
+  document.getElementById('f-orc').value='887f';
+  document.getElementById('f-lacre').value='Amostra Recebida Lacrada';
+  document.getElementById('f-tensao-e').value='220';
+
+  // Picos FASE
+  document.getElementById('chk-fase-none').checked=false;
+  document.getElementById('tbody-fase').innerHTML='';
+  [
+    ['0,241','35,8','52,1','40,5','62,1','Pass'],
+    ['3,309','32,5','46,0','37,7','56,0','Pass'],
+    ['5,007','32,9','49,0','37,9','60,0','Pass'],
+    ['5,872','33,0','50,0','37,8','60,0','Pass'],
+    ['7,532','33,0','50,0','38,1','60,0','Pass'],
+    ['8,434','32,5','50,0','37,6','60,0','Pass'],
+    ['10,263','32,5','50,0','37,6','60,0','Pass'],
+    ['11,625','32,1','50,0','37,5','60,0','Pass'],
+    ['21,544','32,0','50,0','36,7','60,0','Pass'],
+    ['25,684','32,5','50,0','37,3','60,0','Pass'],
+  ].forEach(r=>{
+    addPeakCond('fase');
+    const rows=[...document.querySelectorAll('#tbody-fase tr')];
+    const ins=[...rows[rows.length-1].querySelectorAll('input,select')];
+    ins.forEach((el,i)=>{if(r[i])el.value=r[i];});
+  });
+
+  // Picos NEUTRO
+  document.getElementById('chk-neutro-none').checked=false;
+  document.getElementById('tbody-neutro').innerHTML='';
+  [
+    ['0,235','35,7','52,3','40,6','62,3','Pass'],
+    ['0,372','35,5','48,5','40,4','58,5','Pass'],
+    ['2,437','32,4','46,0','37,1','56,0','Pass'],
+    ['3,013','33,3','46,0','37,7','56,0','Pass'],
+    ['5,133','32,9','50,0','37,8','60,0','Pass'],
+    ['5,822','32,7','50,0','38,4','60,0','Pass'],
+    ['6,922','33,0','50,0','38,0','60,0','Pass'],
+    ['11,175','32,6','50,0','37,6','60,0','Pass'],
+    ['22,386','31,8','50,0','37,0','60,0','Pass'],
+    ['29,119','32,7','50,0','37,4','60,0','Pass'],
+  ].forEach(r=>{
+    addPeakCond('neutro');
+    const rows=[...document.querySelectorAll('#tbody-neutro tr')];
+    const ins=[...rows[rows.length-1].querySelectorAll('input,select')];
+    ins.forEach((el,i)=>{if(r[i])el.value=r[i];});
+  });
+
+  // Loops nenhum
+  ['loopA','loopB','loopC'].forEach(id=>{
+    document.getElementById('chk-'+id+'-none').checked=true;
+    const w=document.getElementById('peaks-'+id+'-wrap');
+    if(w) w.style.display='none';
+  });
+
+  // Rad 30-300
+  document.getElementById('chk-rad300-none').checked=false;
+  document.getElementById('tbody-rad300').innerHTML='';
+  [
+    ['91,739','53,5','54,7','-1,3','Pass'],
+    ['126,157','33,2','54,0','-20,8','Pass'],
+    ['151,035','33,4','54,0','-20,6','Pass'],
+    ['171,819','33,6','54,0','-20,4','Pass'],
+    ['180,314','34,0','54,0','-20,0','Pass'],
+    ['200,621','34,3','54,0','-19,7','Pass'],
+    ['231,048','35,1','61,0','-25,9','Pass'],
+  ].forEach(r=>{
+    addPeakRad('rad300');
+    const rows=[...document.querySelectorAll('#tbody-rad300 tr')];
+    const ins=[...rows[rows.length-1].querySelectorAll('input,select')];
+    ins.forEach((el,i)=>{if(r[i])el.value=r[i];});
+  });
+
+  atualizarPreview();
+}
+
+// Init
+atualizarPreview();
+</script>
+</body>
+</html>

@@ -10,14 +10,19 @@ import {
   LayoutDashboard, Search, Cpu, Package, CheckSquare, Play,
   ClipboardList, Award, BookOpen, Monitor, FileText, ScrollText,
   BookMarked, Sigma, Thermometer, BarChart2, GitCommitHorizontal,
-  LogOut, PanelLeftClose, PanelLeftOpen, Settings, AlertCircle,
+  LogOut, PanelLeftClose, PanelLeftOpen, Settings, AlertCircle, Zap,
 } from 'lucide-react'
 
 interface SidebarProps {
   user?: { nome?: string; email?: string; role?: string; laboratorios?: { nome?: string } } | null
 }
 
-const NAV_GROUPS = [
+interface NavGroup {
+  label?: string
+  items: { href: string; icon: any; label: string }[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { href: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
@@ -58,6 +63,12 @@ const NAV_GROUPS = [
       { href: '/dashboard/pendencias', icon: AlertCircle,         label: 'Pendências' },
       { href: '/dashboard/relatorio',  icon: BarChart2,           label: 'Relatório de Status' },
       { href: '/dashboard/changelog',  icon: GitCommitHorizontal, label: 'Changelog' },
+    ],
+  },
+  {
+    label: 'Formulários de Ensaio',
+    items: [
+      { href: '/dashboard/formularios/emc/cispr15', icon: Zap, label: 'CISPR 15 — EMC' },
     ],
   },
 ]
@@ -167,6 +178,11 @@ export default function Sidebar({ user }: SidebarProps) {
                 'my-2',
                 collapsed ? 'mx-3 border-t border-white/5' : 'mx-4 border-t border-white/5',
               )} />
+            )}
+            {group.label && !collapsed && (
+              <p className="px-4 pb-1 text-[8px] font-bold tracking-[1.8px] uppercase text-gold/50 font-mono">
+                {group.label}
+              </p>
             )}
             {group.items.map(item => {
               const active = pathname === item.href || pathname.startsWith(item.href + '/')
