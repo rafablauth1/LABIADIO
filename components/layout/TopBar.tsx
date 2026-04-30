@@ -66,7 +66,7 @@ export default function TopBar() {
   const { eyebrow, title } = getLabel(pathname)
 
   return (
-    <header className="flex-shrink-0 flex items-center justify-between px-6 border-b border-white/5"
+    <header className="sticky top-0 z-30 flex-shrink-0 flex items-center justify-between px-6 border-b border-white/5"
             style={{ height: 52, background: 'rgba(7,10,16,0.8)', backdropFilter: 'blur(8px)' }}>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2">

@@ -130,7 +130,7 @@ export default function Sidebar({ user }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex flex-col h-full border-r border-white/5 flex-shrink-0 overflow-hidden transition-all duration-250',
+        'sticky top-0 self-start flex flex-col h-screen border-r border-white/5 flex-shrink-0 overflow-hidden transition-all duration-250',
         collapsed ? 'w-14' : 'w-sidebar',
       )}
       style={{ background: '#070A10' }}
