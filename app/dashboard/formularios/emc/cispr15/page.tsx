@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Lightbulb, Lamp, ArrowRight, Upload, X, Loader2,
-  Trash2, FileJson, CheckCircle2, FileText,
+  Trash2, FileJson, CheckCircle2, FileText, FolderOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -70,8 +70,14 @@ export default function Cispr15ConfigPage() {
   const [cfg,    setCfg]    = useState<Cispr15Config>(DEFAULTS)
   const [photos, setPhotos] = useState<Photo[]>([])
   const [docx,   setDocx]   = useState<VoltData>({ loading: false, html: null, filename: null })
-  const [flash,  setFlash]  = useState<string | null>(null)
+  const [flash,        setFlash]       = useState<string | null>(null)
+  const [pastaLoading, setPastaLoading] = useState(false)
   const photoRef = useRef<HTMLInputElement>(null)
+  const pastaRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (photoRef.current) photoRef.current.setAttribute('webkitdirectory', '')
+  }, [])
 
   /* ── carregar localStorage ── */
   useEffect(() => {
@@ -119,15 +125,52 @@ export default function Cispr15ConfigPage() {
     setFlash(null)
   }
 
-  async function handlePhotos(files: FileList) {
+  async function handlePhotosFromFiles(files: File[]) {
     const next: Photo[] = []
-    for (const f of Array.from(files)) {
+    for (const f of files) {
       try { next.push({ ...(await resizeToBase64(f)), name: f.name }) } catch {}
     }
-    const updated = [...photos, ...next]
-    setPhotos(updated)
-    try { localStorage.setItem(PHOTOS_KEY, JSON.stringify(updated.map(({ name, base64 }) => ({ name, base64 })))) }
+    setPhotos(next)
+    try { localStorage.setItem(PHOTOS_KEY, JSON.stringify(next.map(({ name, base64 }) => ({ name, base64 })))) }
     catch { alert('Armazenamento cheio — reduza o número de fotos.') }
+  }
+
+  async function handlePhotos(files: FileList) {
+    const getNum = (name: string) => parseInt(name.replace(/\.[^/.]+$/, '').replace(/\D/g, ''), 10) || 0
+    const sorted = Array.from(files)
+      .filter(f => f.type.startsWith('image/'))
+      .sort((a, b) => getNum(a.name) - getNum(b.name))
+    await handlePhotosFromFiles(sorted)
+  }
+
+  /* ── Carrega pasta completa: encontra .docx + fotos (qualquer profundidade) ── */
+  async function handlePastaCompleta(files: FileList) {
+    setPastaLoading(true)
+    try {
+      const all = Array.from(files)
+      const getNum = (name: string) => parseInt(name.replace(/\.[^/.]+$/, '').replace(/\D/g, ''), 10) || 0
+
+      // Primeiro .docx encontrado na pasta (independente da profundidade)
+      const docxFile = all.find(f => f.name.toLowerCase().endsWith('.docx'))
+
+      // Todas as imagens da pasta, ordenadas numericamente
+      const imageFiles = all
+        .filter(f => f.type.startsWith('image/'))
+        .sort((a, b) => getNum(a.name) - getNum(b.name))
+
+      if (!docxFile && imageFiles.length === 0) {
+        alert('Pasta inválida — certifique-se de que contém um .docx e uma subpasta de fotos.')
+        return
+      }
+
+      // Processa em paralelo — fotos não dependem do DOCX
+      await Promise.all([
+        docxFile              ? handleDocx(docxFile)            : Promise.resolve(),
+        imageFiles.length > 0 ? handlePhotosFromFiles(imageFiles) : Promise.resolve(),
+      ])
+    } finally {
+      setPastaLoading(false)
+    }
   }
 
   function removePhoto(i: number) {
@@ -144,8 +187,9 @@ export default function Cispr15ConfigPage() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setDocx({ loading: false, html: data.html, filename: file.name })
-      localStorage.setItem(DOCX_HTML_KEY, data.html)
-      localStorage.setItem(DOCX_NAME_KEY, file.name)
+      // HTML pode ter base64 grande — ignora silenciosamente se exceder quota
+      try { localStorage.setItem(DOCX_HTML_KEY, data.html) } catch {}
+      try { localStorage.setItem(DOCX_NAME_KEY, file.name) } catch {}
     } catch (err: any) {
       alert(`Erro ao processar o arquivo: ${err.message}`)
       setDocx({ loading: false, html: null, filename: null })
@@ -362,69 +406,97 @@ export default function Cispr15ConfigPage() {
         <div className="card p-5">
           <p className="form-section mb-4">Anexos</p>
 
-          {/* Fotos */}
-          <div className="mb-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs text-white/50 font-mono uppercase tracking-wider">Fotos da Amostra</span>
-              <label className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium cursor-pointer transition-all',
-                photos.length > 0
-                  ? 'border-green/30 bg-green/8 text-green-400'
-                  : 'border-white/15 bg-white/4 text-white/50 hover:border-gold/40 hover:text-gold',
-              )}>
-                <Upload size={11} />
-                {photos.length > 0 ? `${photos.length} foto(s) carregada(s)` : 'Carregar Fotos'}
-                <input ref={photoRef} type="file" accept="image/*" multiple className="hidden"
+          {/* ── Botão principal: pasta completa ── */}
+          <label className={cn(
+            'flex items-center justify-center gap-2.5 w-full px-4 py-4 rounded-xl border-2 border-dashed text-sm font-semibold cursor-pointer transition-all mb-4',
+            pastaLoading
+              ? 'border-blue-400/40 bg-blue-500/8 text-blue-400 cursor-wait'
+              : (docx.html || photos.length > 0)
+              ? 'border-green/30 bg-green/6 text-green-400 hover:border-green/50'
+              : 'border-gold/30 bg-gold/4 text-gold hover:border-gold/60 hover:bg-gold/8',
+          )}>
+            {pastaLoading
+              ? <><Loader2 size={16} className="animate-spin" /> Processando pasta…</>
+              : <><FolderOpen size={16} /> Carregar Pasta do Ensaio</>}
+            <input ref={pastaRef} type="file" className="hidden"
+              disabled={pastaLoading}
+              {...{ webkitdirectory: '' } as any}
+              onChange={e => { if (e.target.files?.length) handlePastaCompleta(e.target.files) }} />
+          </label>
+
+          <p className="text-[10px] text-white/25 font-mono text-center mb-4 -mt-2">
+            A pasta deve conter: <span className="text-white/40">1 arquivo .docx</span> na raiz +{' '}
+            <span className="text-white/40">subpasta de fotos</span> (1.png, 2.png…)
+          </p>
+
+          {/* Status do que foi carregado */}
+          {(docx.html || photos.length > 0) && (
+            <div className="flex flex-col gap-2 mb-4">
+              {docx.html && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green/8 border border-green/20">
+                  <CheckCircle2 size={12} className="text-green-400 flex-shrink-0" />
+                  <span className="text-green-400 text-[11px] font-mono truncate flex-1">{docx.filename}</span>
+                  <button onClick={removeDocx} className="text-white/25 hover:text-red-400 transition-colors flex-shrink-0">
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+              {photos.length > 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green/8 border border-green/20">
+                  <CheckCircle2 size={12} className="text-green-400 flex-shrink-0" />
+                  <span className="text-green-400 text-[11px] font-mono flex-1">{photos.length} foto(s) carregada(s)</span>
+                  <button onClick={() => { setPhotos([]); localStorage.removeItem(PHOTOS_KEY) }}
+                    className="text-white/25 hover:text-red-400 transition-colors flex-shrink-0">
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Thumbnails das fotos */}
+          {photos.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {photos.map((ph, i) => (
+                <div key={i} className="relative group">
+                  <img src={ph.url} alt={`Foto ${i + 1}`}
+                    className="w-16 h-12 object-cover rounded-lg border border-white/10" />
+                  <button onClick={() => removePhoto(i)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500/90 text-white items-center justify-center hidden group-hover:flex transition-all">
+                    <X size={10} />
+                  </button>
+                  <span className="text-[8px] text-white/30 block text-center mt-0.5">{i + 1}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Controles individuais (fallback) ── */}
+          <div className="border-t border-white/5 pt-4 space-y-3">
+            <p className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Ou carregue separadamente</p>
+
+            <div className="flex gap-2">
+              {/* Fotos individuais */}
+              <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[11px] text-white/40 hover:text-gold hover:border-gold/30 cursor-pointer transition-all">
+                <Upload size={11} /> Pasta de Fotos
+                <input ref={photoRef} type="file" className="hidden"
                   onChange={e => { if (e.target.files?.length) handlePhotos(e.target.files) }} />
               </label>
+
+              {/* DOCX individual */}
+              {!docx.html && !docx.loading && (
+                <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-[11px] text-white/40 hover:text-gold hover:border-gold/30 cursor-pointer transition-all">
+                  <Upload size={11} /> Radimation .docx
+                  <input type="file" accept=".docx" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleDocx(f) }} />
+                </label>
+              )}
+              {docx.loading && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-blue-400">
+                  <Loader2 size={11} className="animate-spin" /> Processando…
+                </div>
+              )}
             </div>
-
-            {photos.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {photos.map((ph, i) => (
-                  <div key={i} className="relative group">
-                    <img src={ph.url} alt={`Foto ${i + 1}`}
-                      className="w-20 h-16 object-cover rounded-lg border border-white/10" />
-                    <button onClick={() => removePhoto(i)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500/90 text-white items-center justify-center hidden group-hover:flex transition-all">
-                      <X size={10} />
-                    </button>
-                    <span className="text-[8px] text-white/30 block text-center mt-0.5 truncate w-20">
-                      Figura {i + 1}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Radimation — único arquivo */}
-          <div>
-            <span className="text-xs text-white/50 font-mono uppercase tracking-wider block mb-3">
-              Dados Radimation (.docx)
-            </span>
-
-            {docx.loading ? (
-              <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-blue-300/30 bg-blue-500/8 text-blue-400 text-sm">
-                <Loader2 size={14} className="animate-spin" />
-                Processando arquivo…
-              </div>
-            ) : docx.html ? (
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-green/8 border border-green/20">
-                <CheckCircle2 size={14} className="text-green-400 flex-shrink-0" />
-                <span className="text-green-400 text-[11px] font-mono truncate flex-1">{docx.filename}</span>
-                <button onClick={removeDocx} className="text-white/25 hover:text-red-400 transition-colors flex-shrink-0">
-                  <X size={13} />
-                </button>
-              </div>
-            ) : (
-              <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-dashed border-white/15 bg-white/3 text-white/50 hover:border-gold/40 hover:text-gold text-sm font-medium cursor-pointer transition-all">
-                <Upload size={14} />
-                Carregar Radimation (.docx)
-                <input type="file" accept=".docx" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleDocx(f) }} />
-              </label>
-            )}
           </div>
         </div>
 

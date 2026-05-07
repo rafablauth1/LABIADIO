@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Printer, Upload, X, Loader2 } from 'lucide-react'
+import { ArrowLeft, Printer, Upload, X, Loader2, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   type Cispr15Config, getTensoes, CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY,
@@ -14,13 +14,19 @@ interface Photo     { url: string; name: string }
 
 const LABEL_ID: Record<string, string> = { lampada: 'Código de Barras', luminaria: 'N° de Série' }
 const BLUE = '#003366'
+const PUCRS_LOGO = '/formularios/emc/pucrs-logo.png'
+const CRL_BADGE  = '/formularios/emc/crl0075.jpg'
 
 /* ─── estilos de texto base (Arial 11pt) ───────────────────────────────────── */
 const FS = { base: '11pt', med: '10pt', sm: '9pt', xs: '8pt', xxs: '7pt' } as const
 
+const GRAY1 = '#C8C8C8'  // cabeçalhos de seção e th de tabela
+const GRAY2 = '#E5E5E5'  // sub-títulos e áreas de info
+
 const p:      React.CSSProperties = { marginBottom: 5,  fontSize: FS.base, fontFamily: 'Arial, sans-serif' }
 const pJ:     React.CSSProperties = { ...p, textAlign: 'justify' }
-const pTitle: React.CSSProperties = { ...p, fontWeight: 700, marginTop: 14, marginBottom: 4 }
+const pTitle: React.CSSProperties = { ...p, fontWeight: 700, marginTop: 14, marginBottom: 4, background: GRAY2, padding: '4px 8px' }
+const pSub:   React.CSSProperties = { ...p, fontWeight: 700, background: GRAY2, padding: '3px 8px' }
 
 function fmtDate(iso: string) {
   if (!iso) return '—'
@@ -47,9 +53,9 @@ function PageFooter() {
 }
 
 /* ─── wrapper de página A4 com margens Word (15 mm topo) ───────────────────── */
-function Page({ children, first }: { children: React.ReactNode; first?: boolean }) {
+function Page({ children, first, flow }: { children: React.ReactNode; first?: boolean; flow?: boolean }) {
   return (
-    <div className={cn('doc-page', first && 'doc-page-first')}>
+    <div className={cn('doc-page', first && 'doc-page-first', flow && 'doc-page-flow')}>
       <div style={{ padding: '15mm 14mm 22mm', boxSizing: 'border-box' as const, minHeight: '100%' }}>
         {children}
       </div>
@@ -58,31 +64,36 @@ function Page({ children, first }: { children: React.ReactNode; first?: boolean 
   )
 }
 
-/* ─── cabeçalho repetido (páginas 2+): N° relatório + período + emissão ─────── */
+/* ─── cabeçalho repetido (páginas 2+) — layout Word ────────────────────────── */
 function PageHeader({ cfg }: { cfg: Cispr15Config }) {
   return (
-    <div style={{ borderBottom: `1.5px solid ${BLUE}`, marginBottom: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'stretch', border: '1px solid #ccc' }}>
-        {/* Info do laboratório */}
-        <div style={{ flex: 1, padding: '4px 10px', borderRight: '1px solid #ccc' }}>
-          <span style={{ fontSize: FS.xs }}>
-            <b>LABELO/PUCRS</b>&nbsp;·&nbsp;Laboratório de Ensaio acreditado pela Cgcre de acordo com a
-            ABNT NBR ISO/IEC 17025, sob o número CRL 0075
+    <div style={{ border: `1.5px solid ${BLUE}`, marginBottom: 10, overflow: 'hidden' }}>
+      {/* Linha 1: LABELO/PUCRS | acred | N° */}
+      <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid #ccc', background: GRAY2 }}>
+        <div style={{ width: 70, flexShrink: 0, padding: '3px 6px', borderRight: '1px solid #ccc', display: 'flex', alignItems: 'center' }}>
+          <span style={{ fontSize: '7.5pt', fontWeight: 700, color: BLUE }}>LABELO/PUCRS</span>
+        </div>
+        <div style={{ flex: 1, padding: '3px 8px', borderRight: '1px solid #ccc' }}>
+          <span style={{ fontSize: '6.5pt', color: '#444' }}>
+            Laboratório de Ensaio acreditado pela Cgcre de acordo com a ABNT NBR ISO/IEC 17025, sob o número CRL 0075
           </span>
         </div>
-        {/* N° relatório + datas */}
-        <div style={{ width: 185, flexShrink: 0, padding: '4px 10px' }}>
-          <div style={{ fontSize: FS.xxs, color: '#666' }}>Relatório de Ensaio N°</div>
-          <div style={{ fontSize: FS.med, fontWeight: 700, color: BLUE }}>{cfg.numRelatorio || '—'}</div>
-          <div style={{ fontSize: FS.xs, color: '#444', marginTop: 2 }}>
-            Período: {fmtDate(cfg.periodoInicio)} até {fmtDate(cfg.periodoFim)}
-          </div>
-          <div style={{ fontSize: FS.xs, color: '#444' }}>Emissão: {fmtDate(cfg.dataEmissao)}</div>
+        <div style={{ width: 160, flexShrink: 0, padding: '3px 8px', textAlign: 'right' }}>
+          <div style={{ fontSize: '6pt', color: '#666' }}>Relatório de Ensaio</div>
+          <div style={{ fontSize: '8.5pt', fontWeight: 700, color: BLUE }}>{cfg.numRelatorio || '—'}</div>
         </div>
       </div>
-      {/* Linha do produto */}
-      <div style={{ border: '1px solid #ccc', borderTop: 'none', padding: '2px 8px', fontSize: FS.sm }}>
-        {cfg.produto} – {cfg.modelo} – {cfg.fabricante}
+      {/* Linha 2: produto | período | emissão */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#eef2f8', padding: '2px 8px' }}>
+        <span style={{ fontSize: '7pt', fontWeight: 700, color: BLUE, flex: 1 }}>
+          {cfg.produto} – {cfg.modelo} – {cfg.fabricante}
+        </span>
+        <span style={{ fontSize: '6.5pt', color: '#444' }}>
+          Período: {fmtDate(cfg.periodoInicio)} até {fmtDate(cfg.periodoFim)}
+        </span>
+        <span style={{ fontSize: '6.5pt', color: '#444' }}>
+          Emissão: {fmtDate(cfg.dataEmissao)}
+        </span>
       </div>
     </div>
   )
@@ -92,7 +103,7 @@ function PageHeader({ cfg }: { cfg: Cispr15Config }) {
 function SecHeader({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      background: BLUE, color: 'white',
+      background: GRAY1, color: '#000',
       fontSize: FS.base, fontWeight: 700,
       padding: '5px 10px',
       margin: '14px 0 8px',
@@ -105,7 +116,7 @@ function SecHeader({ children }: { children: React.ReactNode }) {
 /* ─── tabela de limites ───────────────────────────────────────────────────── */
 function LimitTable({ cols, rows, note }: { cols: string[]; rows: string[][]; note?: string }) {
   const td: React.CSSProperties = { border: '1px solid #ccc', padding: '3px 6px', textAlign: 'center', fontSize: FS.sm }
-  const th: React.CSSProperties = { ...td, background: BLUE, color: 'white', fontWeight: 700 }
+  const th: React.CSSProperties = { ...td, background: GRAY1, color: '#000', fontWeight: 700 }
   return (
     <>
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
@@ -126,10 +137,40 @@ function LimitTable({ cols, rows, note }: { cols: string[]; rows: string[][]; no
 /* ─── página principal ─────────────────────────────────────────────────────── */
 export default function Cispr15RelatorioPage() {
   const router = useRouter()
-  const [cfg,    setCfg]    = useState<Cispr15Config | null>(null)
-  const [docx,   setDocx]   = useState<DocxState>({ loading: false, html: null, filename: null })
-  const [photos, setPhotos] = useState<Photo[]>([])
+  const [cfg,         setCfg]        = useState<Cispr15Config | null>(null)
+  const [docx,        setDocx]       = useState<DocxState>({ loading: false, html: null, filename: null })
+  const [photos,      setPhotos]     = useState<Photo[]>([])
+  const [photoWidth,  setPhotoWidth] = useState(140)
+  const [pastaLoading, setPastaLoading] = useState(false)
   const photoRef = useRef<HTMLInputElement>(null)
+  const pastaRef = useRef<HTMLInputElement>(null)
+
+  const docxPages = useMemo(() => {
+    if (!docx.html) return []
+    try {
+      const parser = new DOMParser()
+      const dom = parser.parseFromString(docx.html, 'text/html')
+      const children = Array.from(dom.body.children)
+      const pages: string[] = []
+      let current = ''
+      for (const child of children) {
+        const el = child as HTMLElement
+        const style = el.getAttribute('style') ?? ''
+        if (el.tagName === 'DIV' && style.includes('page-break-before:always')) {
+          if (current.trim()) { pages.push(current); current = '' }
+          pages.push(el.innerHTML)
+        } else {
+          current += el.outerHTML
+        }
+      }
+      if (current.trim()) pages.push(current)
+      return pages.length > 0 ? pages : [docx.html]
+    } catch { return [docx.html] }
+  }, [docx.html])
+
+  useEffect(() => {
+    if (photoRef.current) photoRef.current.setAttribute('webkitdirectory', '')
+  }, [])
 
   useEffect(() => {
     const raw = localStorage.getItem(CFG_KEY)
@@ -155,18 +196,46 @@ export default function Cispr15RelatorioPage() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setDocx({ loading: false, html: data.html, filename: file.name })
-      localStorage.setItem(DOCX_HTML_KEY, data.html)
-      localStorage.setItem(DOCX_NAME_KEY, file.name)
+      try { localStorage.setItem(DOCX_HTML_KEY, data.html) } catch {}
+      try { localStorage.setItem(DOCX_NAME_KEY, file.name) } catch {}
     } catch (err: any) {
       alert(`Erro ao processar: ${err.message}`)
       setDocx({ loading: false, html: null, filename: null })
     }
   }
 
+  function handlePhotosFromFiles(files: File[]) {
+    const getNum = (name: string) => parseInt(name.replace(/\.[^/.]+$/, '').replace(/\D/g, ''), 10) || 0
+    const sorted = [...files].sort((a, b) => getNum(a.name) - getNum(b.name))
+    setPhotos(sorted.map(f => ({ url: URL.createObjectURL(f), name: f.name })))
+  }
+
   function handlePhotos(files: FileList) {
-    const next: Photo[] = []
-    Array.from(files).forEach(f => next.push({ url: URL.createObjectURL(f), name: f.name }))
-    setPhotos(prev => [...prev, ...next])
+    const getNum = (name: string) => parseInt(name.replace(/\.[^/.]+$/, '').replace(/\D/g, ''), 10) || 0
+    const sorted = Array.from(files)
+      .filter(f => f.type.startsWith('image/'))
+      .sort((a, b) => getNum(a.name) - getNum(b.name))
+    handlePhotosFromFiles(sorted)
+  }
+
+  async function handlePastaCompleta(files: FileList) {
+    setPastaLoading(true)
+    try {
+      const all = Array.from(files)
+      const getNum = (name: string) => parseInt(name.replace(/\.[^/.]+$/, '').replace(/\D/g, ''), 10) || 0
+
+      const docxFile = all.find(f => f.name.toLowerCase().endsWith('.docx'))
+      const imageFiles = all
+        .filter(f => f.type.startsWith('image/'))
+        .sort((a, b) => getNum(a.name) - getNum(b.name))
+
+      await Promise.all([
+        docxFile              ? handleDocx(docxFile)             : Promise.resolve(),
+        imageFiles.length > 0 ? (handlePhotosFromFiles(imageFiles), Promise.resolve()) : Promise.resolve(),
+      ])
+    } finally {
+      setPastaLoading(false)
+    }
   }
 
   if (!cfg) return null
@@ -245,9 +314,10 @@ export default function Cispr15RelatorioPage() {
             position: relative; box-sizing: border-box;
           }
           .doc-page-first { page-break-before: avoid; }
+          .doc-page-flow  { height: auto !important; overflow: visible !important; }
           .upload-zone { display: none !important; }
           .doc-content th {
-            background-color: ${BLUE} !important; color: white !important;
+            background-color: ${GRAY1} !important; color: #000 !important;
             -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
           }
           .doc-content tr:nth-child(even) td {
@@ -266,12 +336,13 @@ export default function Cispr15RelatorioPage() {
         /* estilos do conteúdo Radimation */
         .doc-content table { width:100%; border-collapse:collapse; margin:8px 0; font-size:9pt; font-family:Arial,sans-serif; }
         .doc-content td,.doc-content th { border:1px solid #ccc !important; padding:4px 7px; text-align:center; }
-        .doc-content th { background:${BLUE}; color:white; font-weight:700; }
+        .doc-content th { background:${GRAY1}; color:#000; font-weight:700; }
         .doc-content tr:nth-child(even) td { background:#f5f8ff; }
         .doc-content img { max-width:165mm; width:auto; height:auto; border:1px solid #ddd; display:block; margin:12px auto; page-break-inside:avoid; }
         .doc-content p { margin-bottom:5px; font-size:11pt; font-family:Arial,sans-serif; }
-        .doc-content h1,.doc-content h2,.doc-content h3 {
-          font-size:12pt; font-weight:700; color:${BLUE};
+        .doc-content h1,.doc-content h2,.doc-content h3,.doc-content h4 {
+          font-size:12pt; font-weight:700; color:#000;
+          background:${GRAY2}; padding:4px 8px;
           margin:14px 0 6px; font-family:Arial,sans-serif;
         }
       `}</style>
@@ -279,44 +350,73 @@ export default function Cispr15RelatorioPage() {
       {/* ── barra de controles (não imprime) ── */}
       <div className="no-print flex flex-wrap items-center gap-2 mb-6">
         <button onClick={() => router.back()}
-          className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-sm mr-2">
+          className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-sm mr-1">
           <ArrowLeft size={14} /> Voltar
         </button>
 
-        <span className="text-white/15 mr-1">|</span>
+        <span className="text-white/10">|</span>
 
+        {/* ── Botão principal: carregar pasta ── */}
+        <label className={cn(
+          'flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all',
+          pastaLoading
+            ? 'border-blue-300/30 bg-blue-500/8 text-blue-400 pointer-events-none'
+            : (docx.html || photos.length > 0)
+              ? 'border-green/30 bg-green/8 text-green-400 hover:border-green/50 cursor-pointer'
+              : 'border-gold/40 bg-gold/8 text-gold hover:bg-gold/14 cursor-pointer',
+        )}>
+          {pastaLoading ? <Loader2 size={12} className="animate-spin" /> : <FolderOpen size={13} />}
+          {pastaLoading ? 'Processando pasta…' : (docx.html || photos.length > 0) ? 'Trocar Pasta' : 'Carregar Pasta do Ensaio'}
+          <input ref={pastaRef} type="file" className="hidden"
+            disabled={pastaLoading}
+            {...{ webkitdirectory: '' } as any}
+            onChange={e => { if (e.target.files?.length) handlePastaCompleta(e.target.files) }} />
+        </label>
+
+        {/* Status resumido */}
+        {docx.html && (
+          <span className="text-[10px] text-white/30 font-mono truncate max-w-[140px]">✓ {docx.filename}</span>
+        )}
+        {photos.length > 0 && (
+          <span className="text-[10px] text-white/30 font-mono">✓ {photos.length} foto(s)</span>
+        )}
+
+        <span className="text-white/10">|</span>
+
+        {/* Controles individuais (fallback) */}
         {docx.loading ? (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-300/30 bg-blue-500/8 text-blue-400 text-xs">
-            <Loader2 size={12} className="animate-spin" /> Processando…
+          <div className="flex items-center gap-1 text-blue-400 text-xs">
+            <Loader2 size={11} className="animate-spin" /> .docx…
           </div>
         ) : (
-          <label className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all',
-            docx.html ? 'border-green/30 bg-green/8 text-green-400'
-                      : 'border-white/15 bg-white/5 text-white/60 hover:border-gold/40 hover:text-gold',
-          )}>
-            <Upload size={12} />
-            {docx.html ? `✓ ${docx.filename}` : 'Carregar Radimation (.docx)'}
+          <label className="flex items-center gap-1 px-2 py-1 rounded border border-white/8 text-[11px] text-white/30 hover:text-white/60 cursor-pointer transition-all">
+            <Upload size={10} /> .docx
             <input type="file" accept=".docx" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) handleDocx(f) }} />
           </label>
         )}
 
-        <label className={cn(
-          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all',
-          photos.length > 0 ? 'border-green/30 bg-green/8 text-green-400'
-                            : 'border-white/15 bg-white/5 text-white/60 hover:border-gold/40 hover:text-gold',
-        )}>
-          <Upload size={12} />
-          Fotos da Amostra{photos.length > 0 ? ` (${photos.length})` : ''}
-          <input ref={photoRef} type="file" accept="image/*" multiple className="hidden"
+        <label className="flex items-center gap-1 px-2 py-1 rounded border border-white/8 text-[11px] text-white/30 hover:text-white/60 cursor-pointer transition-all">
+          <Upload size={10} /> fotos
+          <input ref={photoRef} type="file" className="hidden"
             onChange={e => { if (e.target.files?.length) handlePhotos(e.target.files) }} />
         </label>
 
         {photos.length > 0 && (
-          <button onClick={() => setPhotos([])} className="text-white/30 hover:text-red-400 text-xs transition-colors">
-            <X size={12} />
+          <button onClick={() => setPhotos([])} className="text-white/20 hover:text-red-400 text-xs transition-colors">
+            <X size={11} />
           </button>
+        )}
+
+        {photos.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="range" min={60} max={175} step={5} value={photoWidth}
+              onChange={e => setPhotoWidth(Number(e.target.value))}
+              className="w-20 accent-yellow-400 cursor-pointer"
+            />
+            <span className="text-white/30 text-[10px] font-mono">{photoWidth}mm</span>
+          </div>
         )}
 
         <div className="flex-1" />
@@ -332,43 +432,41 @@ export default function Cispr15RelatorioPage() {
 
         {/* ══ PÁGINA 1 — CAPA ══ */}
         <Page first>
-          {/* Cabeçalho da capa (sem margem extra no topo — Page já aplicou 15mm) */}
-          <div style={{ borderBottom: `2px solid ${BLUE}`, marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'stretch' }}>
-              {/* Logotipo */}
-              <div style={{ width: 58, background: BLUE, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px 6px', gap: 4 }}>
-                <span style={{ color: 'white', fontSize: 9, fontWeight: 900, letterSpacing: 1 }}>EMC</span>
-                <span style={{ color: '#E8B94B', fontSize: 6, fontWeight: 700, letterSpacing: 1.5, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>LABELO</span>
+          {/* Cabeçalho da capa — layout Word */}
+          <div style={{ border: '1px solid #999', marginBottom: 10, overflow: 'hidden' }}>
+            {/* Topo escuro: logo PUCRS + texto universidade + CRL */}
+            <div style={{ display: 'flex', alignItems: 'center', background: '#3C3C3C', minHeight: 80 }}>
+              <div style={{ width: 82, flexShrink: 0, padding: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={PUCRS_LOGO} alt="PUCRS" style={{ width: 66, height: 'auto', display: 'block' }} />
               </div>
-              {/* Info do lab */}
-              <div style={{ flex: 1, padding: '8px 12px', borderLeft: '1px solid #ccc', borderRight: '1px solid #ccc' }}>
-                <p style={{ fontSize: FS.med, fontWeight: 700, color: BLUE, marginBottom: 2 }}>Pontifícia Universidade Católica do Rio Grande do Sul</p>
-                <p style={{ fontSize: FS.sm, fontWeight: 700, marginBottom: 1 }}>LABELO - Laboratórios Especializados em Eletroeletrônica</p>
-                <p style={{ fontSize: FS.xs, color: '#333', marginBottom: 1 }}>Calibração e Ensaios</p>
-                <p style={{ fontSize: FS.xs, color: '#333' }}>Rede Brasileira de Laboratórios de Ensaios</p>
+              <div style={{ flex: 1, textAlign: 'center', padding: '6px 8px' }}>
+                <p style={{ fontSize: '10pt', fontWeight: 700, color: '#fff', margin: '0 0 3px' }}>Pontifícia Universidade Católica do Rio Grande do Sul</p>
+                <p style={{ fontSize: '8.5pt', fontWeight: 700, color: '#fff', margin: '0 0 2px' }}>LABELO - Laboratórios Especializados em Eletroeletrônica</p>
+                <p style={{ fontSize: '8.5pt', fontWeight: 700, color: '#fff', margin: '0 0 2px' }}>Calibração e Ensaios</p>
+                <p style={{ fontSize: '8.5pt', fontWeight: 700, color: '#fff', margin: 0 }}>Rede Brasileira de Laboratórios de Ensaios</p>
               </div>
-              {/* N° relatório + datas */}
-              <div style={{ width: 185, flexShrink: 0, padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 2 }}>
-                <p style={{ fontSize: FS.xxs, color: '#555' }}>Laboratório de Ensaio acreditado pela Cgcre de acordo com a ABNT NBR ISO/IEC 17025 sob o número CRL 0075</p>
-                <div style={{ marginTop: 4, borderTop: '1px solid #ddd', paddingTop: 4 }}>
-                  <div style={{ fontSize: FS.xxs, color: '#666' }}>Relatório de Ensaio N°</div>
-                  <div style={{ fontSize: FS.med, fontWeight: 700, color: BLUE }}>{cfg.numRelatorio || '—'}</div>
-                  <div style={{ fontSize: FS.xs, color: '#444', marginTop: 2 }}>Período: {fmtDate(cfg.periodoInicio)} até {fmtDate(cfg.periodoFim)}</div>
-                  <div style={{ fontSize: FS.xs, color: '#444' }}>Emissão: {fmtDate(cfg.dataEmissao)}</div>
-                </div>
+              <div style={{ width: 82, flexShrink: 0, padding: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={CRL_BADGE} alt="CRL 0075" style={{ height: 62, width: 'auto', display: 'block' }} />
+              </div>
+            </div>
+            {/* Parte cinza: texto acred + Relatório de Ensaio / Nº */}
+            <div style={{ background: GRAY2, borderTop: '1px solid #bbb', padding: '5px 14px 8px' }}>
+              <p style={{ textAlign: 'center', fontSize: '6.5pt', fontStyle: 'italic', color: '#444', margin: '0 0 5px' }}>
+                Laboratório de Ensaio acreditado pela Cgcre de acordo com a ABNT NBR ISO/IEC 17025 sob o número CRL 0075
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13pt', fontWeight: 700, color: '#000' }}>Relatório de Ensaio</span>
+                <span style={{ fontSize: '13pt', fontWeight: 700, color: '#000' }}>N° {cfg.numRelatorio || '—'}</span>
               </div>
             </div>
           </div>
 
-          {/* Título centralizado */}
+          {/* Período e emissão centralizados abaixo do cabeçalho */}
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <p style={{ fontSize: '13pt', fontWeight: 700, marginBottom: 6 }}>
-              Relatório de Ensaio N° {cfg.numRelatorio || '—'}
-            </p>
-            <p style={{ fontSize: FS.base, color: '#333', marginBottom: 2 }}>
+            <p style={{ fontSize: FS.base, fontWeight: 700, marginBottom: 2 }}>
               Período de realização dos ensaios: {fmtDate(cfg.periodoInicio)} até {fmtDate(cfg.periodoFim)}
             </p>
-            <p style={{ fontSize: FS.base, color: '#333' }}>
+            <p style={{ fontSize: FS.base, fontWeight: 700 }}>
               Data de emissão do relatório: {fmtDate(cfg.dataEmissao)}
             </p>
           </div>
@@ -448,11 +546,11 @@ export default function Cispr15RelatorioPage() {
           <p style={pJ}>As medições foram realizadas tanto no condutor fase como no condutor neutro, um de cada vez.</p>
 
           <p style={pTitle}>1.1 Limites (Item 4 da Norma NBR IEC/CISPR 15/2014)</p>
-          <p style={{ ...p, fontWeight: 700, marginTop: 8 }}>1.1.1. Terminais de alimentação (Item 4.3.1):</p>
+          <p style={{ ...pSub, marginTop: 8 }}>1.1.1. Terminais de alimentação (Item 4.3.1):</p>
           <LimitTable {...limCond1} />
-          <p style={{ ...p, fontWeight: 700, marginTop: 14 }}>1.1.2. Terminais de carga (Item 4.3.2):</p>
+          <p style={{ ...pSub, marginTop: 14 }}>1.1.2. Terminais de carga (Item 4.3.2):</p>
           <LimitTable {...limCond2} />
-          <p style={{ ...p, fontWeight: 700, marginTop: 14 }}>1.1.3. Terminais de controle (Item 4.3.3):</p>
+          <p style={{ ...pSub, marginTop: 14 }}>1.1.3. Terminais de controle (Item 4.3.3):</p>
           <LimitTable {...limCond3} />
 
           <p style={pTitle}>
@@ -465,7 +563,7 @@ export default function Cispr15RelatorioPage() {
             apenas nas frequências em que as emissões de pico estavam próximas ou ultrapassaram a margem de 6 dB abaixo
             da linha de limite de quase-pico.
           </p>
-          <p style={{ ...p, fontWeight: 700, marginTop: 14 }}>2.1.1. Faixa de 9 kHz a 30 MHz (Item 4.4.1):</p>
+          <p style={{ ...pSub, marginTop: 14 }}>2.1.1. Faixa de 9 kHz a 30 MHz (Item 4.4.1):</p>
           <LimitTable {...limRad1} />
 
           <p style={pTitle}>
@@ -475,45 +573,51 @@ export default function Cispr15RelatorioPage() {
             O equipamento em ensaio foi colocado sobre blocos não condutivos (10 cm), sobre placa de metal ligada à terra.
             O equipamento foi ligado a uma rede de acoplamento/desacoplamento (CDN), montado sobre placa de metal conectada ao terra.
           </p>
-          <p style={{ ...p, fontWeight: 700, marginTop: 14 }}>3.1. Faixa de 30 MHz a 300 MHz (Item 4.4.2):</p>
+          <p style={{ ...pSub, marginTop: 14 }}>3.1. Faixa de 30 MHz a 300 MHz (Item 4.4.2):</p>
           <LimitTable {...limRad2} />
         </Page>
 
-        {/* ══ PÁGINA — RESULTADOS RADIMATION ══ */}
-        <Page>
-          <PageHeader cfg={cfg} />
-          <SecHeader>Parte 2 – Resultados dos Ensaios</SecHeader>
-
-          {!docx.html && !docx.loading && (
-            <label className="upload-zone no-print flex flex-col items-center gap-2 p-6 mb-4 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 hover:border-yellow-300 cursor-pointer transition-all">
-              <Upload size={18} className="text-gray-400" />
-              <p className="text-gray-500 text-xs text-center">Carregar arquivo <b className="text-gray-700">.docx</b> do Radimation</p>
-              <input type="file" accept=".docx" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleDocx(f) }} />
-            </label>
-          )}
-          {docx.loading && (
-            <div className="upload-zone no-print flex items-center gap-2 p-4 mb-4 rounded-lg border border-dashed border-blue-200 bg-blue-50">
-              <Loader2 size={14} className="animate-spin text-blue-500" />
-              <span className="text-blue-600 text-xs">Processando arquivo…</span>
-            </div>
-          )}
-          {docx.html && (
-            <div className="upload-zone no-print flex items-center justify-between px-3 py-2 mb-4 rounded-lg border border-green-200 bg-green-50">
-              <span className="text-green-700 text-[10px] font-mono truncate">{docx.filename}</span>
-              <button
-                onClick={() => { setDocx({ loading: false, html: null, filename: null }); localStorage.removeItem(DOCX_HTML_KEY); localStorage.removeItem(DOCX_NAME_KEY) }}
-                className="text-gray-400 hover:text-red-500 ml-2 flex-shrink-0">
-                <X size={12} />
-              </button>
-            </div>
-          )}
-
-          {docx.html && (
+        {/* ══ PÁGINAS — RESULTADOS RADIMATION ══ */}
+        {(!docx.html || docx.loading) && (
+          <Page flow>
+            <PageHeader cfg={cfg} />
+            <SecHeader>Parte 2 – Resultados dos Ensaios</SecHeader>
+            {!docx.html && !docx.loading && (
+              <label className="upload-zone no-print flex flex-col items-center gap-2 p-6 mb-4 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 hover:border-yellow-300 cursor-pointer transition-all">
+                <Upload size={18} className="text-gray-400" />
+                <p className="text-gray-500 text-xs text-center">Carregar arquivo <b className="text-gray-700">.docx</b> do Radimation</p>
+                <input type="file" accept=".docx" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleDocx(f) }} />
+              </label>
+            )}
+            {docx.loading && (
+              <div className="upload-zone no-print flex items-center gap-2 p-4 mb-4 rounded-lg border border-dashed border-blue-200 bg-blue-50">
+                <Loader2 size={14} className="animate-spin text-blue-500" />
+                <span className="text-blue-600 text-xs">Processando arquivo…</span>
+              </div>
+            )}
+          </Page>
+        )}
+        {docx.html && docxPages.map((pageHtml, i) => (
+          <Page key={`docx-${i}`} flow>
+            <PageHeader cfg={cfg} />
+            {i === 0 && (
+              <>
+                <div className="upload-zone no-print flex items-center justify-between px-3 py-2 mb-2 rounded-lg border border-green-200 bg-green-50">
+                  <span className="text-green-700 text-[10px] font-mono truncate">{docx.filename}</span>
+                  <button
+                    onClick={() => { setDocx({ loading: false, html: null, filename: null }); localStorage.removeItem(DOCX_HTML_KEY); localStorage.removeItem(DOCX_NAME_KEY) }}
+                    className="text-gray-400 hover:text-red-500 ml-2 flex-shrink-0">
+                    <X size={12} />
+                  </button>
+                </div>
+                <SecHeader>Parte 2 – Resultados dos Ensaios</SecHeader>
+              </>
+            )}
             <div className="doc-content" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11pt' }}
-              dangerouslySetInnerHTML={{ __html: docx.html }} />
-          )}
-        </Page>
+              dangerouslySetInnerHTML={{ __html: pageHtml }} />
+          </Page>
+        ))}
 
         {/* ══ PÁGINA — INCERTEZAS ══ */}
         <Page>
@@ -536,47 +640,63 @@ export default function Cispr15RelatorioPage() {
         </Page>
 
         {/* ══ PÁGINAS DE FOTOS — mínimo 2 páginas (4 slots) ══ */}
-        {photoPages.map((pair, pi) => (
-          <Page key={`foto-${pi}`}>
-            <PageHeader cfg={cfg} />
-            {pi === 0 && <SecHeader>Fotos da Amostra</SecHeader>}
-            <div style={{ display: 'flex', flexDirection: 'column', height: pi === 0 ? 'calc(297mm - 68mm)' : 'calc(297mm - 52mm)' }}>
-              {[0, 1].map(slot => {
-                const ph = pair[slot] ?? null
-                const figNum = pi * 2 + slot + 1
-                return (
-                  <div key={slot} style={{
-                    flex: 1,
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                    borderBottom: slot === 0 ? '1px dashed #ddd' : 'none',
-                    padding: '4mm 0',
-                    position: 'relative',
-                  }}>
-                    {ph ? (
-                      <>
-                        <div className="no-print" style={{ position: 'absolute', top: 4, right: 0 }}>
-                          <button
-                            onClick={() => setPhotos(prev => prev.filter((_, j) => j !== pi * 2 + slot))}
-                            style={{ fontSize: 10, color: '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}>
-                            ✕ remover
-                          </button>
-                        </div>
-                        <img
-                          src={ph.url} alt={`Figura ${figNum}`}
-                          style={{ maxWidth: '150mm', maxHeight: '90mm', objectFit: 'contain', border: '1px solid #ccc', display: 'block' }}
-                        />
-                        <p style={{ fontSize: FS.xs, color: '#555', marginTop: 6, textAlign: 'center' }}>
-                          Figura {figNum} – Amostra ensaiada
-                        </p>
-                      </>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-          </Page>
-        ))}
+        {photoPages.map((pair, pi) => {
+          // Altura disponível para as 2 fotos (mm): página A4 − margens − header − secHeader(só pg0)
+          const slotHeightMm = pi === 0 ? 103 : 116
+          return (
+            <Page key={`foto-${pi}`}>
+              <PageHeader cfg={cfg} />
+              {pi === 0 && <SecHeader>Fotos da Amostra</SecHeader>}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {[0, 1].map(slot => {
+                  const ph = pair[slot] ?? null
+                  const figNum = pi * 2 + slot + 1
+                  return (
+                    <div key={slot} style={{
+                      height: `${slotHeightMm}mm`,
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderBottom: slot === 0 ? '1px dashed #ddd' : 'none',
+                      padding: '3mm 8mm',
+                      boxSizing: 'border-box',
+                      position: 'relative',
+                    }}>
+                      {ph ? (
+                        <>
+                          <div className="no-print" style={{ position: 'absolute', top: 4, right: 4 }}>
+                            <button
+                              onClick={() => setPhotos(prev => prev.filter((_, j) => j !== pi * 2 + slot))}
+                              style={{ fontSize: 10, color: '#bbb', background: 'none', border: 'none', cursor: 'pointer' }}>
+                              ✕ remover
+                            </button>
+                          </div>
+                          <img
+                            src={ph.url} alt={`Figura ${figNum}`}
+                            style={{
+                              maxWidth: `${photoWidth}mm`,
+                              maxHeight: `${slotHeightMm - 14}mm`,
+                              width: 'auto',
+                              height: 'auto',
+                              objectFit: 'contain',
+                              border: '1px solid #ccc',
+                              display: 'block',
+                            }}
+                          />
+                          <p style={{ fontSize: FS.xs, color: '#555', marginTop: 5, textAlign: 'center', flexShrink: 0 }}>
+                            Figura {figNum} – Amostra ensaiada
+                          </p>
+                        </>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            </Page>
+          )
+        })}
 
         {/* ══ ÚLTIMA PÁGINA — OBSERVAÇÕES FINAIS ══ */}
         <Page>
