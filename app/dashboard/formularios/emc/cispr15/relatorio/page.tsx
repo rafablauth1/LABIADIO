@@ -420,7 +420,21 @@ export default function Cispr15RelatorioPage() {
         )}
 
         <div className="flex-1" />
-        <button onClick={() => window.print()} className="btn-primary flex items-center gap-2 px-4 py-2 text-sm">
+        <button
+          onClick={() => {
+            const sanitize = (s: string) =>
+              s.replace(/[/\\:*?"<>|]/g, '-').replace(/\s+/g, '_').substring(0, 25)
+            const num    = sanitize(cfg.numRelatorio || 'SEM-NUMERO')
+            const proto  = cfg.protocolo || 'SEM-PROTOCOLO'
+            const client = sanitize(cfg.cliente || 'SEM-CLIENTE')
+            const tipo   = cfg.tipo === 'luminaria' ? 'Luminaria' : 'Lampada'
+            const title  = `${num}_${proto}_${client}_${tipo}`
+            const prev   = document.title
+            document.title = title
+            window.print()
+            setTimeout(() => { document.title = prev }, 1500)
+          }}
+          className="btn-primary flex items-center gap-2 px-4 py-2 text-sm">
           <Printer size={14} /> Imprimir / PDF
         </button>
       </div>

@@ -1,16 +1,16 @@
 export interface Cispr15Config {
   tipo: 'lampada' | 'luminaria'
-  apenasUma220: boolean        // só para lâmpada: usa apenas 220V
+  apenasUma220: boolean
   // Cliente
   cliente: string
-  clienteRua: string           // Rua - número - bairro
-  clienteCidade: string        // Cidade - Estado
-  clienteCep: string           // CEP
+  clienteRua: string
+  clienteCidade: string
+  clienteCep: string
   // DUT
   produto: string
   fabricante: string
   modelo: string
-  identificador: string        // código de barras (lamp) ou n° série (lum)
+  identificador: string
   tensaoAlim: string
   potencia: string
   frequencia: string
@@ -21,6 +21,7 @@ export interface Cispr15Config {
   periodoInicio: string
   periodoFim: string
   dataEmissao: string
+  responsavel: string
 }
 
 export function getTensoes(cfg: Cispr15Config): string[] {
@@ -37,6 +38,7 @@ export const DEFAULTS: Cispr15Config = {
   tensaoAlim: '', potencia: '', frequencia: '50/60Hz',
   numRelatorio: '', orcamento: '', protocolo: '',
   periodoInicio: today(), periodoFim: today(), dataEmissao: today(),
+  responsavel: '',
 }
 
 // localStorage keys
