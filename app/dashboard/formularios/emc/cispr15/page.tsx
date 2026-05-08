@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Lightbulb, Lamp, ArrowRight, Upload, X, Loader2,
-  Trash2, FileJson, CheckCircle2, FileText, FolderOpen, Users, Database, History,
+  Trash2, CheckCircle2, FileText, FolderOpen, Users, Database, History, BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -81,7 +81,8 @@ export default function Cispr15ConfigPage() {
   const cfgLoaded = useRef(false)
 
   useEffect(() => {
-    if (photoRef.current) photoRef.current.setAttribute('webkitdirectory', '')
+    photoRef.current?.setAttribute('webkitdirectory', '')
+    pastaRef.current?.setAttribute('webkitdirectory', '')
   }, [])
 
   useEffect(() => {
@@ -117,12 +118,21 @@ export default function Cispr15ConfigPage() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setCfg(prev => ({ ...prev, [k]: e.target.value }))
 
-  const setCheck = (k: keyof Cispr15Config) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setCfg(prev => ({ ...prev, [k]: e.target.checked }))
-
   function setTipo(t: 'lampada' | 'luminaria') {
-    setCfg(prev => ({ ...prev, tipo: t, apenasUma220: false }))
+    setCfg(prev => ({ ...prev, tipo: t, tensaoConfig: '127_220' }))
+  }
+
+  async function handleCep(raw: string) {
+    const digits = raw.replace(/\D/g, '').slice(0, 8)
+    const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
+    setCfg(prev => ({ ...prev, clienteCep: formatted }))
+    if (digits.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
+        const data = await res.json()
+        if (!data.erro) setCfg(prev => ({ ...prev, clienteCep: formatted, clienteCidade: `${data.localidade} - ${data.uf}` }))
+      } catch {}
+    }
   }
 
   function limparDados() {
@@ -199,14 +209,6 @@ export default function Cispr15ConfigPage() {
   }
 
   /* ── importar JSON ── */
-  function handleImportCliente() {
-    importJson(data => setCfg(prev => ({
-      ...prev,
-      cliente: data.cliente ?? prev.cliente, clienteRua: data.clienteRua ?? prev.clienteRua,
-      clienteCidade: data.clienteCidade ?? prev.clienteCidade, clienteCep: data.clienteCep ?? prev.clienteCep,
-    })))
-  }
-
   function handleImportAmostra() {
     importJson(data => setCfg(prev => ({
       ...prev,
@@ -302,8 +304,12 @@ export default function Cispr15ConfigPage() {
     router.push('/dashboard/formularios/emc/cispr15/lote')
   }
 
-  const labelId   = cfg.tipo === 'lampada' ? 'Código de Barras' : 'Número de Série'
-  const tensLabel = cfg.tipo === 'luminaria' ? '220 V (fixo)' : cfg.apenasUma220 ? '220 V' : '127 V + 220 V'
+  const labelId = cfg.tipo === 'lampada' ? 'Código de Barras' : 'Número de Série'
+  const TENSAO_OPTS = [
+    { value: '127',         label: '127 V',                sub: 'apenas' },
+    { value: '127_220',     label: '127 V + 220 V',        sub: 'padrão' },
+    { value: '127_220_277', label: '127 V + 220 V + 277 V', sub: 'internacional' },
+  ] as const
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -361,19 +367,28 @@ export default function Cispr15ConfigPage() {
           </div>
 
           {cfg.tipo === 'lampada' && (
-            <label className="flex items-center gap-2.5 mt-4 cursor-pointer group">
-              <input type="checkbox" checked={cfg.apenasUma220} onChange={setCheck('apenasUma220')}
-                className="w-4 h-4 rounded accent-gold cursor-pointer" />
-              <span className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
-                Usar apenas <span className="text-gold font-semibold">220 V</span>
-                <span className="text-white/30 text-xs ml-1.5">(padrão: 127 V + 220 V)</span>
-              </span>
-            </label>
+            <div className="mt-4 space-y-1.5">
+              <p className="text-[10px] text-white/35 uppercase tracking-widest font-mono mb-2">Tensão(ões) de ensaio</p>
+              {TENSAO_OPTS.map(opt => (
+                <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input type="radio" name="tensaoConfig" value={opt.value}
+                    checked={cfg.tensaoConfig === opt.value}
+                    onChange={() => setCfg(prev => ({ ...prev, tensaoConfig: opt.value }))}
+                    className="w-4 h-4 accent-gold cursor-pointer" />
+                  <span className="text-sm text-white/70 group-hover:text-white/90 transition-colors">
+                    <span className="font-semibold text-white/90">{opt.label}</span>
+                    <span className="text-white/30 text-xs ml-1.5">— {opt.sub}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
           )}
 
           <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-teal/6 border border-teal/15 text-sm">
             <span className="font-mono text-[10px] text-teal/60 uppercase tracking-wider">Tensões</span>
-            <span className="text-teal font-bold">{tensLabel}</span>
+            <span className="text-teal font-bold">
+              {cfg.tipo === 'luminaria' ? '220 V' : TENSAO_OPTS.find(o => o.value === cfg.tensaoConfig)?.label ?? '127 V + 220 V'}
+            </span>
             <span className="text-white/15">·</span>
             <span className="font-mono text-[10px] text-teal/60 uppercase tracking-wider">ID</span>
             <span className="text-teal font-bold">{labelId}</span>
@@ -384,16 +399,10 @@ export default function Cispr15ConfigPage() {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="form-section">Cliente</p>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={handleSalvarCliente}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white/50 hover:text-teal border border-white/10 hover:border-teal/30 rounded-lg transition-all">
-                <Database size={11} /> Salvar no banco
-              </button>
-              <button type="button" onClick={handleImportCliente}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white/50 hover:text-gold border border-white/10 hover:border-gold/30 rounded-lg transition-all">
-                <FileJson size={11} /> Importar JSON
-              </button>
-            </div>
+            <button type="button" onClick={handleSalvarCliente}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white/50 hover:text-teal border border-white/10 hover:border-teal/30 rounded-lg transition-all">
+              <Database size={11} /> Salvar no banco
+            </button>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Row label="Nome do Cliente" span2>
@@ -406,11 +415,13 @@ export default function Cispr15ConfigPage() {
             </Row>
             <Row label="Cidade – Estado">
               <input className="input" value={cfg.clienteCidade} onChange={set('clienteCidade')}
-                placeholder="Ex: Brasília - DF" />
+                placeholder="Preenchido automaticamente pelo CEP" />
             </Row>
             <Row label="CEP">
-              <input className="input" value={cfg.clienteCep} onChange={set('clienteCep')}
-                placeholder="Ex: 70.830-010" />
+              <input className="input" value={cfg.clienteCep}
+                onChange={e => handleCep(e.target.value)}
+                placeholder="Ex: 70830-010"
+                maxLength={9} inputMode="numeric" />
             </Row>
           </div>
         </div>
@@ -421,7 +432,7 @@ export default function Cispr15ConfigPage() {
             <p className="form-section">Objeto Ensaiado</p>
             <button type="button" onClick={handleImportAmostra}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white/50 hover:text-gold border border-white/10 hover:border-gold/30 rounded-lg transition-all">
-              <FileJson size={11} /> Importar dados da amostra
+              Importar JSON
             </button>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
@@ -574,6 +585,12 @@ export default function Cispr15ConfigPage() {
           <button type="button" onClick={limparDados}
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-red/20 bg-red/8 text-red-400 hover:bg-red/15 transition-all text-sm font-medium">
             <Trash2 size={14} /> Limpar
+          </button>
+
+          <button type="button"
+            onClick={() => window.open('/dashboard/formularios/emc/cispr15/instrucao', '_blank')}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-white/8 text-white/30 hover:text-white/60 hover:border-white/20 transition-all text-xs">
+            <BookOpen size={13} /> Manual
           </button>
 
           <div className="flex-1" />

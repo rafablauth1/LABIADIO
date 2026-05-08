@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
   const token = Math.random().toString(36).slice(2) + Date.now().toString(36)
   try {
     const body   = await request.json()
-    const origin = request.headers.get('origin') || 'http://localhost:3000'
+    const origin = request.nextUrl.origin
 
     store.set(token, { data: body, expires: Date.now() + 120_000 })
 

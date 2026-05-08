@@ -1,6 +1,6 @@
 export interface Cispr15Config {
   tipo: 'lampada' | 'luminaria'
-  apenasUma220: boolean
+  tensaoConfig: '127' | '127_220' | '127_220_277'
   // Cliente
   cliente: string
   clienteRua: string
@@ -51,7 +51,9 @@ export interface LoteConfig {
 
 export function getTensoes(cfg: Cispr15Config): string[] {
   if (cfg.tipo === 'luminaria') return ['220V']
-  return cfg.apenasUma220 ? ['220V'] : ['127V', '220V']
+  if (cfg.tensaoConfig === '127')         return ['127V']
+  if (cfg.tensaoConfig === '127_220_277') return ['127V', '220V', '277V']
+  return ['127V', '220V']
 }
 
 export const today = () => new Date().toISOString().split('T')[0]
@@ -68,7 +70,7 @@ export function newAmostra(): LoteAmostra {
 }
 
 export const DEFAULTS: Cispr15Config = {
-  tipo: 'lampada', apenasUma220: false,
+  tipo: 'lampada', tensaoConfig: '127_220',
   cliente: '', clienteRua: '', clienteCidade: '', clienteCep: '',
   produto: '', fabricante: '', modelo: '', identificador: '',
   tensaoAlim: '', potencia: '', frequencia: '50/60Hz',

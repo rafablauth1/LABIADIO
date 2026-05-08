@@ -192,7 +192,8 @@ export default function Cispr15RelatorioPage() {
   }, [docx.html])
 
   useEffect(() => {
-    if (photoRef.current) photoRef.current.setAttribute('webkitdirectory', '')
+    photoRef.current?.setAttribute('webkitdirectory', '')
+    pastaRef.current?.setAttribute('webkitdirectory', '')
   }, [])
 
   useEffect(() => {
