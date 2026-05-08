@@ -4,34 +4,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Lightbulb, Lamp, ArrowRight, Upload, X, Loader2,
-  Trash2, FileJson, CheckCircle2, FileText, FolderOpen,
-  ChevronDown, Users, Shield, ShieldCheck, ShieldX,
+  Trash2, FileJson, CheckCircle2, FileText, FolderOpen, Users, Database, History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  type Cispr15Config, getTensoes, DEFAULTS, today,
-  CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY,
+  type Cispr15Config, type LoteConfig, type ClienteDB, DEFAULTS,
+  CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY, LOTE_KEY, CLIENTES_KEY,
+  newAmostra,
 } from './types'
-
-/* ─── Lote ────────────────────────────────────────────────────────────────── */
-interface LoteAmostra {
-  produto: string; fabricante: string; modelo: string; identificador: string
-  tensaoAlim: string; potencia: string; frequencia: string
-  protocolo: string; orcamento: string
-  periodoInicio: string; periodoFim: string; dataEmissao: string
-  conformidade: 'pendente' | 'conforme' | 'reprovado'
-  numRelatorio: string
-}
-
-function newAmostra(): LoteAmostra {
-  return {
-    produto: '', fabricante: '', modelo: '', identificador: '',
-    tensaoAlim: '', potencia: '', frequencia: '50/60Hz',
-    protocolo: '', orcamento: '',
-    periodoInicio: today(), periodoFim: today(), dataEmissao: today(),
-    conformidade: 'pendente', numRelatorio: '',
-  }
-}
+import { ClientesTab } from './ClientesTab'
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 async function resizeToBase64(file: File, maxW = 1024): Promise<{ base64: string; url: string }> {
@@ -82,106 +63,6 @@ function Row({ label, children, span2 }: { label: string; children: React.ReactN
   )
 }
 
-/* ─── AmostraCard (lote) ──────────────────────────────────────────────────── */
-function AmostraCard({ index, amostra, expanded, onToggle, onChange }: {
-  index: number; amostra: LoteAmostra; expanded: boolean
-  onToggle: () => void; onChange: (a: LoteAmostra) => void
-}) {
-  const set = (k: keyof LoteAmostra) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    onChange({ ...amostra, [k]: e.target.value })
-
-  const borderCls =
-    amostra.conformidade === 'reprovado' ? 'border-red/25 bg-red/3' :
-    amostra.conformidade === 'conforme'  ? 'border-green/20 bg-green/3' :
-    'border-white/8'
-
-  const badge: Record<LoteAmostra['conformidade'], string> = {
-    pendente:  'text-white/30 border-white/10',
-    conforme:  'text-green-400 border-green/25 bg-green/8',
-    reprovado: 'text-red-400 border-red/25 bg-red/8',
-  }
-
-  return (
-    <div className={cn('rounded-xl border transition-all', borderCls)}>
-      <button type="button" onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left">
-        <span className="font-mono text-[10px] text-white/30 w-12 shrink-0">#{index + 1}</span>
-        <span className="text-sm text-white/70 flex-1 truncate">
-          {amostra.produto || <span className="text-white/20 italic">sem produto</span>}
-        </span>
-        {amostra.numRelatorio && (
-          <span className="text-[10px] font-mono text-gold shrink-0">{amostra.numRelatorio}</span>
-        )}
-        <span className={cn(
-          'px-2 py-0.5 rounded-md text-[9px] font-mono border uppercase tracking-wider shrink-0',
-          badge[amostra.conformidade]
-        )}>
-          {amostra.conformidade}
-        </span>
-        <ChevronDown size={12} className={cn('text-white/20 transition-transform shrink-0', expanded && 'rotate-180')} />
-      </button>
-
-      {expanded && (
-        <div className="px-4 pb-4 pt-1 border-t border-white/5 space-y-3">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Row label="Produto / Descrição" span2>
-              <input className="input text-sm" value={amostra.produto} onChange={set('produto')} placeholder="Ex: Luminária LED" />
-            </Row>
-            <Row label="Fabricante">
-              <input className="input text-sm" value={amostra.fabricante} onChange={set('fabricante')} />
-            </Row>
-            <Row label="Modelo">
-              <input className="input text-sm" value={amostra.modelo} onChange={set('modelo')} />
-            </Row>
-            <Row label="Identificador">
-              <input className="input text-sm" value={amostra.identificador} onChange={set('identificador')} />
-            </Row>
-            <Row label="Potência">
-              <input className="input text-sm" value={amostra.potencia} onChange={set('potencia')} placeholder="Ex: 60W" />
-            </Row>
-            <Row label="Tensão de Alimentação">
-              <input className="input text-sm" value={amostra.tensaoAlim} onChange={set('tensaoAlim')} />
-            </Row>
-            <Row label="Protocolo LABELO">
-              <input className="input text-sm" value={amostra.protocolo} onChange={set('protocolo')} />
-            </Row>
-            <Row label="Orçamento LABELO">
-              <input className="input text-sm" value={amostra.orcamento} onChange={set('orcamento')} />
-            </Row>
-            <Row label="Período — Início">
-              <input className="input text-sm" type="date" value={amostra.periodoInicio} onChange={set('periodoInicio')} />
-            </Row>
-            <Row label="Período — Fim">
-              <input className="input text-sm" type="date" value={amostra.periodoFim} onChange={set('periodoFim')} />
-            </Row>
-          </div>
-
-          <div>
-            <Label>Conformidade</Label>
-            <div className="flex gap-2 mt-2">
-              {(['pendente', 'conforme', 'reprovado'] as const).map(s => (
-                <button key={s} type="button"
-                  onClick={() => onChange({ ...amostra, conformidade: s })}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border capitalize transition-all',
-                    amostra.conformidade === s
-                      ? badge[s]
-                      : 'text-white/20 border-white/5 hover:border-white/15 hover:text-white/40'
-                  )}>
-                  {s === 'conforme'  && <ShieldCheck size={11} />}
-                  {s === 'reprovado' && <ShieldX size={11} />}
-                  {s === 'pendente'  && <Shield size={11} />}
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 interface VoltData { loading: boolean; html: string | null; filename: string | null }
 interface Photo    { url: string; name: string; base64: string }
 
@@ -194,17 +75,10 @@ export default function Cispr15ConfigPage() {
   const [flash,        setFlash]       = useState<string | null>(null)
   const [pastaLoading, setPastaLoading] = useState(false)
   const [gerandoRel,   setGerandoRel]  = useState(false)
-  const photoRef = useRef<HTMLInputElement>(null)
-  const pastaRef = useRef<HTMLInputElement>(null)
-
-  // ── Lote ──
-  const [loteOpen,      setLoteOpen]      = useState(false)
-  const [loteQtd,       setLoteQtd]       = useState(3)
-  const [loteTipo,      setLoteTipo]      = useState<'lampada' | 'luminaria'>('lampada')
-  const [loteAmostras,  setLoteAmostras]  = useState<LoteAmostra[]>([])
-  const [loteExpanded,  setLoteExpanded]  = useState<number | null>(null)
-  const [loteEmitindo,  setLoteEmitindo]  = useState(false)
-  const [loteResultado, setLoteResultado] = useState<{ reprovados: number[]; checked: boolean } | null>(null)
+  const [tab, setTab] = useState<'formulario' | 'clientes'>('formulario')
+  const photoRef  = useRef<HTMLInputElement>(null)
+  const pastaRef  = useRef<HTMLInputElement>(null)
+  const cfgLoaded = useRef(false)
 
   useEffect(() => {
     if (photoRef.current) photoRef.current.setAttribute('webkitdirectory', '')
@@ -228,6 +102,8 @@ export default function Cispr15ConfigPage() {
   }, [])
 
   useEffect(() => {
+    // skip the very first run (cfg = DEFAULTS) — wait for the load effect to finish first
+    if (!cfgLoaded.current) { cfgLoaded.current = true; return }
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg))
   }, [cfg])
 
@@ -341,7 +217,7 @@ export default function Cispr15ConfigPage() {
     })))
   }
 
-  /* ── gerar relatório (registra no Excel + navega) ── */
+  /* ── gerar relatório ── */
   async function gerarRelatorio() {
     setGerandoRel(true)
     try {
@@ -370,72 +246,62 @@ export default function Cispr15ConfigPage() {
     }
   }
 
-  /* ── lote ── */
-  function openLote() {
-    setLoteTipo(cfg.tipo)
-    setLoteAmostras(Array.from({ length: loteQtd }, newAmostra))
-    setLoteExpanded(null)
-    setLoteResultado(null)
-    setLoteOpen(true)
+  /* ── clientes DB ── */
+  function handleUsarCliente(c: ClienteDB) {
+    setCfg(prev => ({
+      ...prev,
+      cliente: c.nome,
+      clienteRua: c.rua,
+      clienteCidade: c.cidade,
+      clienteCep: c.cep,
+    }))
+    setTab('formulario')
+    flash4(`Cliente "${c.nome}" carregado`)
   }
 
-  function handleLoteQtd(n: number) {
-    const qtd = Math.max(1, Math.min(20, n))
-    setLoteQtd(qtd)
-    setLoteAmostras(prev =>
-      qtd > prev.length
-        ? [...prev, ...Array.from({ length: qtd - prev.length }, newAmostra)]
-        : prev.slice(0, qtd)
-    )
-  }
-
-  function verificarConformidade() {
-    const reprovados = loteAmostras
-      .map((a, i) => ({ a, i }))
-      .filter(({ a }) => a.conformidade === 'reprovado')
-      .map(({ i }) => i)
-    setLoteResultado({ reprovados, checked: true })
-  }
-
-  function removerReprovados() {
-    if (!loteResultado) return
-    const { reprovados } = loteResultado
-    const novas = loteAmostras.filter((_, i) => !reprovados.includes(i))
-    setLoteAmostras(novas)
-    setLoteQtd(novas.length || 1)
-    setLoteResultado(null)
-  }
-
-  async function emitirLote() {
-    const paraEmitir = loteAmostras.map((a, i) => ({ a, i })).filter(({ a }) => a.conformidade !== 'reprovado')
-    if (paraEmitir.length === 0) { alert('Nenhuma amostra para emitir.'); return }
-    setLoteEmitindo(true)
-    const numeros: string[] = []
+  function handleSalvarCliente() {
+    if (!cfg.cliente.trim()) { alert('Preencha o nome do cliente primeiro.'); return }
     try {
-      for (const { a: am, i } of paraEmitir) {
-        const res = await fetch('/api/formularios/cispr15/registrar-excel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cliente: cfg.cliente, produto: am.produto,
-            protocolo: am.protocolo, orcamento: am.orcamento,
-            responsavel: cfg.responsavel,
-          }),
-        })
-        const data = await res.json()
-        if (data.error) throw new Error(`Amostra ${i + 1}: ${data.error}`)
-        setLoteAmostras(prev => prev.map((a, j) => j === i ? { ...a, numRelatorio: data.numRelatorio } : a))
-        numeros.push(data.numRelatorio)
+      const raw = localStorage.getItem(CLIENTES_KEY)
+      const lista: ClienteDB[] = raw ? JSON.parse(raw) : []
+      const existente = lista.find(c => c.nome.toLowerCase() === cfg.cliente.toLowerCase())
+      if (existente) {
+        if (!confirm(`Atualizar os dados de "${cfg.cliente}"?`)) return
+        const updated = lista.map(c => c.id === existente.id
+          ? { ...c, rua: cfg.clienteRua, cidade: cfg.clienteCidade, cep: cfg.clienteCep }
+          : c)
+        localStorage.setItem(CLIENTES_KEY, JSON.stringify(updated))
+      } else {
+        const novo: ClienteDB = {
+          id: Date.now().toString(),
+          nome: cfg.cliente, rua: cfg.clienteRua,
+          cidade: cfg.clienteCidade, cep: cfg.clienteCep, cnpj: '',
+        }
+        localStorage.setItem(CLIENTES_KEY, JSON.stringify([...lista, novo]))
       }
-      flash4(`Lote emitido: ${numeros.join(', ')}`)
-    } catch (err: any) {
-      alert(`Erro ao emitir lote: ${err.message}`)
-    } finally {
-      setLoteEmitindo(false)
-    }
+      flash4('Cliente salvo no banco de dados')
+    } catch { alert('Erro ao salvar cliente') }
   }
 
-  const tensoes   = getTensoes(cfg)
+  /* ── abrir lote ── */
+  function openLote() {
+    const existing = localStorage.getItem(LOTE_KEY)
+    if (!existing) {
+      const config: LoteConfig = {
+        tipo: cfg.tipo,
+        qtd: 3,
+        cliente: cfg.cliente,
+        clienteRua: cfg.clienteRua,
+        clienteCidade: cfg.clienteCidade,
+        clienteCep: cfg.clienteCep,
+        responsavel: cfg.responsavel,
+        amostras: Array.from({ length: 3 }, newAmostra),
+      }
+      localStorage.setItem(LOTE_KEY, JSON.stringify(config))
+    }
+    router.push('/dashboard/formularios/emc/cispr15/lote')
+  }
+
   const labelId   = cfg.tipo === 'lampada' ? 'Código de Barras' : 'Número de Série'
   const tensLabel = cfg.tipo === 'luminaria' ? '220 V (fixo)' : cfg.apenasUma220 ? '220 V' : '127 V + 220 V'
 
@@ -449,7 +315,25 @@ export default function Cispr15ConfigPage() {
         </p>
       </div>
 
-      <div className="space-y-5">
+      {/* ── Abas ── */}
+      <div className="flex gap-1 mb-5 p-1 bg-navy rounded-xl border border-white/6 w-fit">
+        {(['formulario', 'clientes'] as const).map(t => (
+          <button key={t} type="button" onClick={() => setTab(t)}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+              tab === t
+                ? 'bg-[#141B28] text-white border border-white/10 shadow-sm'
+                : 'text-white/35 hover:text-white/60'
+            )}>
+            {t === 'clientes' && <Database size={13} />}
+            {t === 'formulario' ? 'Formulário' : 'Clientes'}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'clientes' && <ClientesTab onUsar={handleUsarCliente} />}
+
+      {tab === 'formulario' && <div className="space-y-5">
 
         {/* ── Tipo de DUT ── */}
         <div className="card p-5">
@@ -500,10 +384,16 @@ export default function Cispr15ConfigPage() {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="form-section">Cliente</p>
-            <button type="button" onClick={handleImportCliente}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white/50 hover:text-gold border border-white/10 hover:border-gold/30 rounded-lg transition-all">
-              <FileJson size={11} /> Importar dados do cliente
-            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleSalvarCliente}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white/50 hover:text-teal border border-white/10 hover:border-teal/30 rounded-lg transition-all">
+                <Database size={11} /> Salvar no banco
+              </button>
+              <button type="button" onClick={handleImportCliente}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white/50 hover:text-gold border border-white/10 hover:border-gold/30 rounded-lg transition-all">
+                <FileJson size={11} /> Importar JSON
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <Row label="Nome do Cliente" span2>
@@ -693,6 +583,11 @@ export default function Cispr15ConfigPage() {
             <Users size={14} /> Emitir Lote
           </button>
 
+          <button type="button" onClick={() => router.push('/dashboard/formularios/emc/cispr15/emenda')}
+            className="btn-secondary flex items-center gap-2 px-4 py-2.5 text-sm">
+            <History size={14} /> Gerar Emenda
+          </button>
+
           <button type="button" onClick={() => router.push('/dashboard/formularios/emc/cispr15/relatorio')}
             className="btn-secondary flex items-center gap-2 px-4 py-2.5 text-sm">
             <FileText size={14} /> Ver PDF
@@ -711,124 +606,7 @@ export default function Cispr15ConfigPage() {
           </div>
         )}
 
-      </div>
-
-      {/* ══ MODAL LOTE ══ */}
-      {loteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-          <div className="bg-[#141B28] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col shadow-2xl">
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
-              <div>
-                <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest mb-0.5">CISPR 15 · EMC</p>
-                <h2 className="text-base font-bold text-white font-display">Emitir Lote</h2>
-              </div>
-              <button onClick={() => setLoteOpen(false)} className="text-white/20 hover:text-white/60 transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Config row */}
-            <div className="flex items-start gap-6 px-6 py-4 border-b border-white/5 bg-white/2">
-              <div className="flex flex-col gap-2">
-                <Label>Amostras</Label>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => handleLoteQtd(loteQtd - 1)}
-                    className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 font-bold flex items-center justify-center transition-all">
-                    −
-                  </button>
-                  <span className="text-white font-bold font-mono w-8 text-center">{loteQtd}</span>
-                  <button type="button" onClick={() => handleLoteQtd(loteQtd + 1)}
-                    className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 font-bold flex items-center justify-center transition-all">
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label>Tipo</Label>
-                <div className="flex gap-2">
-                  {(['lampada', 'luminaria'] as const).map(t => (
-                    <button key={t} type="button" onClick={() => setLoteTipo(t)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-mono border transition-all',
-                        loteTipo === t ? 'border-gold bg-gold/10 text-gold' : 'border-white/8 text-white/35 hover:border-white/20'
-                      )}>
-                      {t === 'lampada' ? 'Lâmpada' : 'Luminária'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 flex-1 min-w-0">
-                <Label>Cliente</Label>
-                <p className="text-sm text-white/50 truncate">
-                  {cfg.cliente || <span className="text-white/20 italic">não preenchido no formulário</span>}
-                </p>
-              </div>
-            </div>
-
-            {/* Lista de amostras */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
-              {loteAmostras.map((am, i) => (
-                <AmostraCard key={i} index={i} amostra={am}
-                  expanded={loteExpanded === i}
-                  onToggle={() => setLoteExpanded(loteExpanded === i ? null : i)}
-                  onChange={updated => setLoteAmostras(prev => prev.map((a, j) => j === i ? updated : a))}
-                />
-              ))}
-            </div>
-
-            {/* Resultado de conformidade */}
-            {loteResultado?.checked && (
-              <div className={cn(
-                'mx-6 mb-3 px-4 py-3 rounded-xl border text-sm',
-                loteResultado.reprovados.length > 0
-                  ? 'border-red/20 bg-red/8 text-red-400'
-                  : 'border-green/20 bg-green/8 text-green-400'
-              )}>
-                {loteResultado.reprovados.length === 0 ? (
-                  <span className="flex items-center gap-2">
-                    <ShieldCheck size={14} /> Todas as amostras estão conformes.
-                  </span>
-                ) : (
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="flex items-center gap-2">
-                      <ShieldX size={14} />
-                      {loteResultado.reprovados.length} reprovada(s):{' '}
-                      {loteResultado.reprovados.map(i => `Amostra ${i + 1}`).join(', ')}
-                    </span>
-                    <button type="button" onClick={removerReprovados}
-                      className="text-xs font-semibold underline hover:no-underline shrink-0">
-                      Remover do lote
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="flex items-center gap-3 px-6 py-4 border-t border-white/8">
-              <button type="button" onClick={verificarConformidade}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 text-sm text-white/50 hover:text-white hover:border-white/25 transition-all">
-                <Shield size={13} /> Verificar Conformidade
-              </button>
-              <div className="flex-1" />
-              <button type="button" onClick={() => setLoteOpen(false)}
-                className="btn-secondary px-4 py-2 text-sm">
-                Fechar
-              </button>
-              <button type="button" onClick={emitirLote} disabled={loteEmitindo}
-                className="btn-primary flex items-center gap-2 px-5 py-2 text-sm font-bold">
-                {loteEmitindo ? <Loader2 size={13} className="animate-spin" /> : <ArrowRight size={13} />}
-                {loteEmitindo ? 'Emitindo…' : 'Emitir Lote'}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      </div>}
     </div>
   )
 }

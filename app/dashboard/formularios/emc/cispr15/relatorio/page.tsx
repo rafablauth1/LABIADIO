@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Printer, Upload, X, Loader2, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  type Cispr15Config, getTensoes, CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY,
+  type Cispr15Config, type EmendaDraft, type RelatorioSalvo,
+  getTensoes, CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY,
+  RELATORIOS_KEY, EMENDA_DRAFT_KEY,
 } from '../types'
 
 /* ─── tipos ────────────────────────────────────────────────────────────────── */
@@ -25,8 +27,8 @@ const GRAY2 = '#E5E5E5'  // sub-títulos e áreas de info
 
 const p:      React.CSSProperties = { marginBottom: 5,  fontSize: FS.base, fontFamily: 'Arial, sans-serif' }
 const pJ:     React.CSSProperties = { ...p, textAlign: 'justify' }
-const pTitle: React.CSSProperties = { ...p, fontWeight: 700, marginTop: 14, marginBottom: 4, background: GRAY2, padding: '4px 8px' }
-const pSub:   React.CSSProperties = { ...p, fontWeight: 700, background: GRAY2, padding: '3px 8px' }
+const pTitle: React.CSSProperties = { ...p, fontWeight: 700, marginTop: 8,  marginBottom: 3, background: GRAY2, padding: '2px 8px' }
+const pSub:   React.CSSProperties = { ...p, fontWeight: 700, background: GRAY2, padding: '2px 8px' }
 
 function fmtDate(iso: string) {
   if (!iso) return '—'
@@ -36,8 +38,8 @@ function fmtDate(iso: string) {
 /* ─── rodapé com endereço — absoluto no fundo de cada página ───────────────── */
 function PageFooter() {
   return (
-    <div style={{
-      position: 'absolute', bottom: 0, left: 0, right: 0,
+    <div className="page-footer" style={{
+      flexShrink: 0,
       borderTop: '1px solid #ccc',
       background: '#f9f9f9',
       fontSize: FS.xxs,
@@ -56,7 +58,7 @@ function PageFooter() {
 function Page({ children, first, flow }: { children: React.ReactNode; first?: boolean; flow?: boolean }) {
   return (
     <div className={cn('doc-page', first && 'doc-page-first', flow && 'doc-page-flow')}>
-      <div style={{ padding: '15mm 14mm 22mm', boxSizing: 'border-box' as const, minHeight: '100%' }}>
+      <div className="doc-page-inner" style={{ padding: '15mm 14mm 14mm', boxSizing: 'border-box' as const }}>
         {children}
       </div>
       <PageFooter />
@@ -64,35 +66,46 @@ function Page({ children, first, flow }: { children: React.ReactNode; first?: bo
   )
 }
 
-/* ─── cabeçalho repetido (páginas 2+) — layout Word ────────────────────────── */
-function PageHeader({ cfg }: { cfg: Cispr15Config }) {
+/* ─── cabeçalho repetido (páginas 2+) ──────────────────────────────────────── */
+function PageHeader({ cfg, numDisplay }: { cfg: Cispr15Config; numDisplay?: string }) {
   return (
-    <div style={{ border: `1.5px solid ${BLUE}`, marginBottom: 10, overflow: 'hidden' }}>
-      {/* Linha 1: LABELO/PUCRS | acred | N° */}
-      <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid #ccc', background: GRAY2 }}>
-        <div style={{ width: 70, flexShrink: 0, padding: '3px 6px', borderRight: '1px solid #ccc', display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontSize: '7.5pt', fontWeight: 700, color: BLUE }}>LABELO/PUCRS</span>
+    <div style={{ border: '1px solid #999', marginBottom: 10, overflow: 'hidden' }}>
+      {/* Faixa escura: logo | nome | N° relatório */}
+      <div style={{ display: 'flex', alignItems: 'stretch', background: '#3C3C3C', minHeight: 36 }}>
+        <div style={{
+          width: 46, flexShrink: 0, padding: '3px 5px',
+          borderRight: '1px solid #555',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <img src={PUCRS_LOGO} alt="PUCRS" style={{ height: 26, width: 'auto', display: 'block' }} />
         </div>
-        <div style={{ flex: 1, padding: '3px 8px', borderRight: '1px solid #ccc' }}>
-          <span style={{ fontSize: '6.5pt', color: '#444' }}>
-            Laboratório de Ensaio acreditado pela Cgcre de acordo com a ABNT NBR ISO/IEC 17025, sob o número CRL 0075
+        <div style={{ flex: 1, padding: '3px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <span style={{ fontSize: '7.5pt', fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
+            LABELO – Laboratórios Especializados em Eletroeletrônica | Calibração e Ensaios
+          </span>
+          <span style={{ fontSize: '5.5pt', color: '#bbb', lineHeight: 1.3 }}>
+            Pontifícia Universidade Católica do Rio Grande do Sul
           </span>
         </div>
-        <div style={{ width: 160, flexShrink: 0, padding: '3px 8px', textAlign: 'right' }}>
-          <div style={{ fontSize: '6pt', color: '#666' }}>Relatório de Ensaio</div>
-          <div style={{ fontSize: '8.5pt', fontWeight: 700, color: BLUE }}>{cfg.numRelatorio || '—'}</div>
+        <div style={{
+          width: 130, flexShrink: 0, padding: '3px 8px',
+          borderLeft: '1px solid #555',
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: '5.5pt', color: '#bbb' }}>Relatório de Ensaio</span>
+          <span style={{ fontSize: '9pt', fontWeight: 700, color: '#fff' }}>{(numDisplay ?? cfg.numRelatorio) || '—'}</span>
         </div>
       </div>
-      {/* Linha 2: produto | período | emissão */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#eef2f8', padding: '2px 8px' }}>
-        <span style={{ fontSize: '7pt', fontWeight: 700, color: BLUE, flex: 1 }}>
+      {/* Faixa clara: acreditação | produto | datas */}
+      <div style={{ display: 'flex', alignItems: 'center', background: GRAY2, padding: '2px 8px', gap: 8 }}>
+        <span style={{ fontSize: '6pt', color: '#555', flexShrink: 0, lineHeight: 1.3 }}>
+          Acreditado Cgcre · ABNT NBR ISO/IEC 17025 · CRL 0075
+        </span>
+        <span style={{ flex: 1, fontSize: '7pt', fontWeight: 700, color: BLUE, textAlign: 'center' }}>
           {cfg.produto} – {cfg.modelo} – {cfg.fabricante}
         </span>
-        <span style={{ fontSize: '6.5pt', color: '#444' }}>
-          Período: {fmtDate(cfg.periodoInicio)} até {fmtDate(cfg.periodoFim)}
-        </span>
-        <span style={{ fontSize: '6.5pt', color: '#444' }}>
-          Emissão: {fmtDate(cfg.dataEmissao)}
+        <span style={{ fontSize: '6pt', color: '#444', flexShrink: 0, lineHeight: 1.3 }}>
+          Per.: {fmtDate(cfg.periodoInicio)} a {fmtDate(cfg.periodoFim)} · Emiss.: {fmtDate(cfg.dataEmissao)}
         </span>
       </div>
     </div>
@@ -105,21 +118,27 @@ function SecHeader({ children }: { children: React.ReactNode }) {
     <div style={{
       background: GRAY1, color: '#000',
       fontSize: FS.base, fontWeight: 700,
-      padding: '5px 10px',
-      margin: '14px 0 8px',
+      padding: '4px 10px',
+      margin: '8px 0 5px',
     }}>
       {children}
     </div>
   )
 }
 
+/* ─── marcador de emenda (superscript vermelho) ─────────────────────────── */
+function Sup({ n }: { n: number | null }) {
+  if (n === null) return null
+  return <sup style={{ fontSize: '7pt', color: '#c00', fontWeight: 700, marginLeft: 2 }}>{n}</sup>
+}
+
 /* ─── tabela de limites ───────────────────────────────────────────────────── */
 function LimitTable({ cols, rows, note }: { cols: string[]; rows: string[][]; note?: string }) {
-  const td: React.CSSProperties = { border: '1px solid #ccc', padding: '3px 6px', textAlign: 'center', fontSize: FS.sm }
+  const td: React.CSSProperties = { border: '1px solid #ccc', padding: '1px 4px', textAlign: 'center', fontSize: FS.sm }
   const th: React.CSSProperties = { ...td, background: GRAY1, color: '#000', fontWeight: 700 }
   return (
     <>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 4 }}>
         <thead><tr>{cols.map(c => <th key={c} style={th}>{c}</th>)}</tr></thead>
         <tbody>
           {rows.map((r, i) => (
@@ -137,13 +156,17 @@ function LimitTable({ cols, rows, note }: { cols: string[]; rows: string[][]; no
 /* ─── página principal ─────────────────────────────────────────────────────── */
 export default function Cispr15RelatorioPage() {
   const router = useRouter()
-  const [cfg,         setCfg]        = useState<Cispr15Config | null>(null)
-  const [docx,        setDocx]       = useState<DocxState>({ loading: false, html: null, filename: null })
-  const [photos,      setPhotos]     = useState<Photo[]>([])
-  const [photoWidth,  setPhotoWidth] = useState(140)
+  const [cfg,          setCfg]         = useState<Cispr15Config | null>(null)
+  const [docx,         setDocx]        = useState<DocxState>({ loading: false, html: null, filename: null })
+  const [photos,       setPhotos]      = useState<Photo[]>([])
+  const [photoWidth,   setPhotoWidth]  = useState(160)
   const [pastaLoading, setPastaLoading] = useState(false)
-  const photoRef = useRef<HTMLInputElement>(null)
-  const pastaRef = useRef<HTMLInputElement>(null)
+  const [gerando,      setGerando]     = useState(false)
+  const [savedFile,    setSavedFile]   = useState<string | null>(null)
+  const [emendaDraft,  setEmendaDraft] = useState<EmendaDraft | null>(null)
+  const photoRef    = useRef<HTMLInputElement>(null)
+  const pastaRef    = useRef<HTMLInputElement>(null)
+  const isPrintMode = useRef(false)
 
   const docxPages = useMemo(() => {
     if (!docx.html) return []
@@ -173,9 +196,43 @@ export default function Cispr15RelatorioPage() {
   }, [])
 
   useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('print_token')
+    if (token) {
+      isPrintMode.current = true
+      // Prazo absoluto: se nada funcionar em 25s, força ready para não travar o Puppeteer
+      const absoluteDeadline = setTimeout(() => { (window as any).__printReady = true }, 25000)
+      fetch(`/api/formularios/cispr15/gerar-pdf?token=${token}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            clearTimeout(absoluteDeadline)
+            ;(window as any).__printReady = true
+            return
+          }
+          setCfg(data.cfg)
+          if (data.emendaDraft) setEmendaDraft(data.emendaDraft)
+          if (data.docxHtml) setDocx({ loading: false, html: data.docxHtml, filename: data.docxName ?? null })
+          if (data.photos?.length)
+            setPhotos(data.photos.map((p: any) => ({ name: p.name, url: `data:image/jpeg;base64,${p.base64}` })))
+          clearTimeout(absoluteDeadline)
+          // Safety: se o useEffect de sinalização não rodar em 12s, força ready
+          setTimeout(() => { (window as any).__printReady = true }, 12000)
+        })
+        .catch(() => {
+          clearTimeout(absoluteDeadline)
+          ;(window as any).__printReady = true
+        })
+      return
+    }
+
+    // Modo normal: carrega do localStorage
     const raw = localStorage.getItem(CFG_KEY)
     if (!raw) { router.replace('/dashboard/formularios/emc/cispr15'); return }
     setCfg(JSON.parse(raw))
+    try {
+      const rawE = localStorage.getItem(EMENDA_DRAFT_KEY)
+      if (rawE) setEmendaDraft(JSON.parse(rawE))
+    } catch {}
     const dHtml = localStorage.getItem(DOCX_HTML_KEY)
     const dName = localStorage.getItem(DOCX_NAME_KEY)
     if (dHtml) setDocx({ loading: false, html: dHtml, filename: dName })
@@ -187,6 +244,24 @@ export default function Cispr15RelatorioPage() {
       }
     } catch {}
   }, [router])
+
+  // Sinaliza puppeteer quando o DOM estiver pronto (modo print_token)
+  useEffect(() => {
+    if (!isPrintMode.current || !cfg) return
+    const signalReady = () => {
+      const imgs = Array.from(document.querySelectorAll('img'))
+      const pending = imgs.filter(img => !img.complete)
+      const done = () => { (window as any).__printReady = true }
+      if (pending.length === 0) { done(); return }
+      // Safety timer: se alguma imagem não disparar onload/onerror em 10s, força ready
+      const imgTimeout = setTimeout(done, 10000)
+      Promise.all(pending.map(img =>
+        new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r() })
+      )).then(() => { clearTimeout(imgTimeout); done() })
+    }
+    // Dois rAF garantem que React já pintou o DOM antes de checar imagens
+    requestAnimationFrame(() => requestAnimationFrame(signalReady))
+  }, [cfg])
 
   async function handleDocx(file: File) {
     setDocx({ loading: true, html: null, filename: null })
@@ -240,8 +315,19 @@ export default function Cispr15RelatorioPage() {
 
   if (!cfg) return null
 
+  const printMode = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('print_token')
+
   const tensoes = getTensoes(cfg)
   const labelId = LABEL_ID[cfg.tipo]
+
+  /* ── emenda helpers ── */
+  function markerFor(campo: string): number | null {
+    return emendaDraft?.alteracoes.find(a => a.campo === campo)?.marker ?? null
+  }
+  const displayNum = emendaDraft
+    ? `${cfg.numRelatorio} – Emenda ${emendaDraft.emendaNum}`
+    : cfg.numRelatorio
 
   /* ── tabelas de limites CISPR 15 ── */
   const limCond1 = {
@@ -297,7 +383,9 @@ export default function Cispr15RelatorioPage() {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11pt; color: #000; line-height: 1.4;
             position: relative; box-sizing: border-box;
+            display: flex; flex-direction: column;
           }
+          .doc-page-inner { flex: 1; }
         }
 
         @media print {
@@ -312,7 +400,9 @@ export default function Cispr15RelatorioPage() {
             font-family: Arial, Helvetica, sans-serif;
             font-size: 11pt; color: #000; line-height: 1.4;
             position: relative; box-sizing: border-box;
+            display: flex; flex-direction: column;
           }
+          .doc-page-inner { flex: 1; }
           .doc-page-first { page-break-before: avoid; }
           .doc-page-flow  { height: auto !important; overflow: visible !important; }
           .upload-zone { display: none !important; }
@@ -335,17 +425,47 @@ export default function Cispr15RelatorioPage() {
 
         /* estilos do conteúdo Radimation */
         .doc-content table { width:100%; border-collapse:collapse; margin:8px 0; font-size:9pt; font-family:Arial,sans-serif; }
-        .doc-content td,.doc-content th { border:1px solid #ccc !important; padding:4px 7px; text-align:center; }
+        .doc-content td,.doc-content th { border:1px solid #ccc !important; padding:2px 5px; text-align:center; }
         .doc-content th { background:${GRAY1}; color:#000; font-weight:700; }
         .doc-content tr:nth-child(even) td { background:#f5f8ff; }
         .doc-content img { max-width:165mm; width:auto; height:auto; border:1px solid #ddd; display:block; margin:12px auto; page-break-inside:avoid; }
         .doc-content p { margin-bottom:5px; font-size:11pt; font-family:Arial,sans-serif; }
-        .doc-content h1,.doc-content h2,.doc-content h3,.doc-content h4 {
-          font-size:12pt; font-weight:700; color:#000;
-          background:${GRAY2}; padding:4px 8px;
-          margin:14px 0 6px; font-family:Arial,sans-serif;
-        }
+        .doc-content h1,.doc-content h2 { font-size:11pt; font-weight:700; color:#000; margin:12px 0 4px; font-family:Arial,sans-serif; }
+        .doc-content h3,.doc-content h4 { font-size:11pt; font-weight:700; color:#000; margin:8px 0 3px; font-family:Arial,sans-serif; }
       `}</style>
+
+      {printMode && (
+        <style>{`
+          body, html { background: white !important; margin: 0 !important; padding: 0 !important; }
+          aside, nav, header, .no-print { display: none !important; }
+          /* Remove padding do container do dashboard para o .doc-page não ficar deslocado */
+          main > div { padding: 0 !important; max-width: none !important; margin: 0 !important; }
+          .dot-grid { background: white !important; }
+          .doc-wrapper { background: white !important; padding: 0 !important; }
+          /* Flex-column: doc-page-inner (flex:1) empurra o rodapé para o fundo naturalmente */
+          .doc-page {
+            margin: 0 !important;
+            box-shadow: none !important;
+            min-height: 0 !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
+            overflow: hidden !important;
+            page-break-before: always !important;
+            break-before: page !important;
+            position: relative !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          .doc-page-first {
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+          }
+          .doc-page-inner { flex: 1 !important; min-height: 0 !important; padding-top: 10mm !important; padding-bottom: 5mm !important; }
+          /* Células de tabela compactas */
+          .doc-page table td, .doc-page table th { padding: 1px 4px !important; }
+          .doc-content td, .doc-content th { padding: 1px 5px !important; }
+        `}</style>
+      )}
 
       {/* ── barra de controles (não imprime) ── */}
       <div className="no-print flex flex-wrap items-center gap-2 mb-6">
@@ -353,6 +473,19 @@ export default function Cispr15RelatorioPage() {
           className="flex items-center gap-1.5 text-white/40 hover:text-white transition-colors text-sm mr-1">
           <ArrowLeft size={14} /> Voltar
         </button>
+
+        {emendaDraft && (
+          <>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400">
+              MODO EMENDA {emendaDraft.emendaNum} — {emendaDraft.numRelatorioOriginal}
+            </span>
+            <button
+              onClick={() => { localStorage.removeItem(EMENDA_DRAFT_KEY); setEmendaDraft(null) }}
+              className="text-xs text-white/30 hover:text-red-400 transition-colors">
+              <X size={12} />
+            </button>
+          </>
+        )}
 
         <span className="text-white/10">|</span>
 
@@ -420,22 +553,91 @@ export default function Cispr15RelatorioPage() {
         )}
 
         <div className="flex-1" />
+
+        {savedFile && (
+          <span className="text-green-400 text-xs font-mono truncate max-w-[260px]">
+            ✓ {savedFile}
+          </span>
+        )}
+
         <button
-          onClick={() => {
-            const sanitize = (s: string) =>
-              s.replace(/[/\\:*?"<>|]/g, '-').replace(/\s+/g, '_').substring(0, 25)
-            const num    = sanitize(cfg.numRelatorio || 'SEM-NUMERO')
-            const proto  = cfg.protocolo || 'SEM-PROTOCOLO'
-            const client = sanitize(cfg.cliente || 'SEM-CLIENTE')
-            const tipo   = cfg.tipo === 'luminaria' ? 'Luminaria' : 'Lampada'
-            const title  = `${num}_${proto}_${client}_${tipo}`
-            const prev   = document.title
-            document.title = title
-            window.print()
-            setTimeout(() => { document.title = prev }, 1500)
+          disabled={gerando}
+          onClick={async () => {
+            setSavedFile(null)
+            setGerando(true)
+            try {
+              const res = await fetch('/api/formularios/cispr15/gerar-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  cfg,
+                  photos: photos.map(p => ({ name: p.name, base64: p.url.split(',')[1] ?? '' })),
+                  docxHtml: docx.html,
+                  docxName: docx.filename,
+                  emendaDraft,
+                }),
+              })
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
+                throw new Error(data.error || `HTTP ${res.status}`)
+              }
+              const filename = res.headers.get('X-Filename') || 'relatorio.pdf'
+              const blob = await res.blob()
+              const url  = URL.createObjectURL(blob)
+              const a    = document.createElement('a')
+              a.href     = url
+              a.download = filename
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              setTimeout(() => URL.revokeObjectURL(url), 1000)
+              setSavedFile(filename)
+              // auto-save RelatorioSalvo
+              try {
+                const photoNames = photos.map(p => p.name)
+                const raw = localStorage.getItem(RELATORIOS_KEY)
+                const lista: RelatorioSalvo[] = raw ? JSON.parse(raw) : []
+                const existingIdx = lista.findIndex(r => r.numRelatorio === cfg.numRelatorio)
+                const emendas = existingIdx >= 0 ? lista[existingIdx].emendas : []
+                if (emendaDraft && !emendas.find(e => e.numero === emendaDraft.emendaNum)) {
+                  emendas.push({ numero: emendaDraft.emendaNum, dataEmenda: emendaDraft.dataEmenda, alteracoes: emendaDraft.alteracoes })
+                }
+                const novo: RelatorioSalvo = {
+                  id: existingIdx >= 0 ? lista[existingIdx].id : Date.now().toString(),
+                  numRelatorio: cfg.numRelatorio,
+                  dataEmissao: cfg.dataEmissao,
+                  clienteNome: cfg.cliente,
+                  cfg: { ...cfg },
+                  photoNames,
+                  docxFilename: docx.filename,
+                  emendas,
+                }
+                if (existingIdx >= 0) lista[existingIdx] = novo
+                else lista.push(novo)
+                localStorage.setItem(RELATORIOS_KEY, JSON.stringify(lista))
+              } catch {}
+            } catch (err: any) {
+              // fallback: diálogo de impressão do browser
+              const s = (v: string, first?: boolean) => {
+                const str = first ? (v || '').split(/\s+/)[0] : (v || '')
+                return str.replace(/[/\\:*?"<>|\s]/g, '_').replace(/_+/g, '_')
+              }
+              const title = `${s(cfg.numRelatorio)}_${s(cfg.protocolo)}_${s(cfg.cliente, true)}_${cfg.tipo === 'luminaria' ? 'Luminaria' : 'Lampada'}`
+              const prev = document.title
+              document.title = title
+              window.print()
+              setTimeout(() => { document.title = prev }, 1500)
+              if (!err.message.includes('Chrome') && !err.message.includes('Edge')) {
+                alert(`Erro: ${err.message}`)
+              }
+            } finally {
+              setGerando(false)
+            }
           }}
-          className="btn-primary flex items-center gap-2 px-4 py-2 text-sm">
-          <Printer size={14} /> Imprimir / PDF
+          className="btn-primary flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-60">
+          {gerando
+            ? <><Loader2 size={14} className="animate-spin" /> Gerando…</>
+            : <><Printer size={14} /> Baixar PDF</>}
         </button>
       </div>
 
@@ -445,7 +647,7 @@ export default function Cispr15RelatorioPage() {
       <div className="doc-wrapper">
 
         {/* ══ PÁGINA 1 — CAPA ══ */}
-        <Page first>
+        <Page first flow>
           {/* Cabeçalho da capa — layout Word */}
           <div style={{ border: '1px solid #999', marginBottom: 10, overflow: 'hidden' }}>
             {/* Topo escuro: logo PUCRS + texto universidade + CRL */}
@@ -459,18 +661,18 @@ export default function Cispr15RelatorioPage() {
                 <p style={{ fontSize: '8.5pt', fontWeight: 700, color: '#fff', margin: '0 0 2px' }}>Calibração e Ensaios</p>
                 <p style={{ fontSize: '8.5pt', fontWeight: 700, color: '#fff', margin: 0 }}>Rede Brasileira de Laboratórios de Ensaios</p>
               </div>
-              <div style={{ width: 82, flexShrink: 0, padding: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={CRL_BADGE} alt="CRL 0075" style={{ height: 62, width: 'auto', display: 'block' }} />
+              <div style={{ width: 90, flexShrink: 0, padding: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={CRL_BADGE} alt="CRL 0075" style={{ height: 74, width: 'auto', display: 'block' }} />
               </div>
             </div>
             {/* Parte cinza: texto acred + Relatório de Ensaio / Nº */}
             <div style={{ background: GRAY2, borderTop: '1px solid #bbb', padding: '5px 14px 8px' }}>
-              <p style={{ textAlign: 'center', fontSize: '6.5pt', fontStyle: 'italic', color: '#444', margin: '0 0 5px' }}>
+              <p style={{ textAlign: 'center', fontSize: '6.5pt', fontStyle: 'italic', color: '#000', margin: '0 0 5px' }}>
                 Laboratório de Ensaio acreditado pela Cgcre de acordo com a ABNT NBR ISO/IEC 17025 sob o número CRL 0075
               </p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '13pt', fontWeight: 700, color: '#000' }}>Relatório de Ensaio</span>
-                <span style={{ fontSize: '13pt', fontWeight: 700, color: '#000' }}>N° {cfg.numRelatorio || '—'}</span>
+                <span style={{ fontSize: '13pt', fontWeight: 700, color: '#000' }}>N° {displayNum || '—'}</span>
               </div>
             </div>
           </div>
@@ -478,7 +680,7 @@ export default function Cispr15RelatorioPage() {
           {/* Período e emissão centralizados abaixo do cabeçalho */}
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
             <p style={{ fontSize: FS.base, fontWeight: 700, marginBottom: 2 }}>
-              Período de realização dos ensaios: {fmtDate(cfg.periodoInicio)} até {fmtDate(cfg.periodoFim)}
+              Período de realização dos ensaios: {fmtDate(cfg.periodoInicio)} até {fmtDate(cfg.periodoFim)}<Sup n={markerFor('periodo')} />
             </p>
             <p style={{ fontSize: FS.base, fontWeight: 700 }}>
               Data de emissão do relatório: {fmtDate(cfg.dataEmissao)}
@@ -486,15 +688,15 @@ export default function Cispr15RelatorioPage() {
           </div>
 
           <SecHeader>Parte 1 - Identificação e condições gerais</SecHeader>
-
-          <p style={pTitle}>1. Cliente:</p>
+             
+          <p style={pTitle}>1. Cliente:<Sup n={markerFor('cliente')} /></p>
           <p style={pJ}>{cfg.cliente || '—'}</p>
           {cfg.clienteRua    && <p style={pJ}>{cfg.clienteRua}</p>}
           {cfg.clienteCidade && <p style={pJ}>{cfg.clienteCidade}</p>}
           {cfg.clienteCep    && <p style={pJ}>CEP: {cfg.clienteCep}</p>}
 
-          <p style={pTitle}>2. Objeto ensaiado (amostra):</p>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6, fontSize: FS.base }}>
+          <p style={pTitle}>2. Objeto ensaiado (amostra):<Sup n={markerFor('amostra')} /><Sup n={markerFor('tecnico')} /><Sup n={markerFor('protocolo')} /></p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6, fontSize: FS.sm }}>
             <tbody>
               {[
                 [cfg.produto || '—',                           'Tensão de alimentação:', cfg.tensaoAlim  || '—'],
@@ -504,28 +706,44 @@ export default function Cispr15RelatorioPage() {
                 ['Protocolo LABELO: ' + (cfg.protocolo || '—'), '', ''],
               ].map((row, i) => (
                 <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#f5f8ff' }}>
-                  <td style={{ border: '1px solid #ccc', padding: '4px 8px', width: '50%' }}>{row[0]}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '4px 8px', fontWeight: 700, width: '22%', color: BLUE, fontSize: FS.xs }}>{row[1]}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '4px 8px', width: '28%' }}>{row[2]}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '2px 6px', width: '44%' }}>{row[0]}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '2px 6px', fontWeight: 700, width: '30%', color: '#000', whiteSpace: 'nowrap' }}>{row[1]}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '2px 6px', width: '26%' }}>{row[2]}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          <p style={pTitle}>2.1 Documentação que acompanha a amostra:<Sup n={markerFor('documentacao')} /></p>
+          <p style={pJ}>{cfg.documentacao || '—'}</p>
+
+          <p style={pTitle}>2.2 Observações:</p>
+          <p style={pJ}>
+            • Os resultados deste relatório de ensaios apresentam itens conformes. Informações adicionais podem ser
+            acessadas em Parte 2 – Resultados dos ensaios.
+          </p>
 
           <p style={pTitle}>3. Documento(s) normativo(s) utilizado(s):</p>
           <p style={pJ}>
             • Associação Brasileira de Normas Técnicas. NBR IEC/CISPR 15/2014 - Limites e métodos de medição das
             radioperturbações características dos equipamentos elétricos de iluminação e similares. Rio de Janeiro, RJ, Brasil, 2014.
           </p>
-          <p style={{ ...pJ, marginTop: 6 }}>3.1 Documentos complementares (fora do escopo de acreditação):</p>
+          <p style={{ ...pJ, marginTop: 6 }}>3.1 Documento(s) complementar(es):</p>
+          <p style={pJ}>Os documentos complementares abaixo indicados não fazem parte do escopo de acreditação deste laboratório.</p>
           <p style={{ ...pJ, marginLeft: 14 }}>
-            • IEC. CISPR 16-4-2 - Second Edition/2011, Specification for radio disturbance and immunity measuring apparatus and
+            • International Electrotechnical Commission. CISPR 16-4-2 - Second Edition/2011, Specification for radio disturbance and immunity measuring apparatus and
             methods – Part 4-2: Uncertainties, statistics and limit modeling – Uncertainty in EMC measurements. Geneva, Switzerland.
           </p>
 
           <p style={pTitle}>4. Condições ambientais:</p>
           <p style={pJ}>Temperatura: 20 °C ± 5 °C</p>
           <p style={pJ}>Umidade Relativa: 55 % ± 15 %</p>
+
+        </Page>
+
+        {/* ══ PÁGINA 2 — SEÇÃO 5 + INÍCIO PARTE 2 ══ */}
+        <Page flow>
+          <PageHeader cfg={cfg} numDisplay={displayNum} />
 
           <p style={pTitle}>5. Observações:</p>
           <p style={pJ}>
@@ -542,12 +760,8 @@ export default function Cispr15RelatorioPage() {
               eletromagnética e rádio frequência foi conduzido nas tensões nominais de {tensoes.join(' e ')}.
             </p>
           )}
-        </Page>
 
-        {/* ══ PÁGINA 2 — LIMITES CISPR 15 ══ */}
-        <Page>
-          <PageHeader cfg={cfg} />
-          <SecHeader>Parte 2 – Resultados dos ensaios</SecHeader>
+          <SecHeader>Parte 2 – Resultados dos ensaios<Sup n={markerFor('resultados')} /></SecHeader>
 
           <p style={pTitle}>
             1. Método de medição das tensões de perturbação conduzidas (Item 8 da Norma NBR IEC/CISPR 15/2014)
@@ -555,46 +769,68 @@ export default function Cispr15RelatorioPage() {
           <p style={pJ}>A tensão de perturbação foi medida nos terminais de alimentação do sistema de iluminação.</p>
           <p style={pJ}>
             Os terminais de saída da LISN e os terminais do equipamento em ensaio foram interligados por um cabo flexível com
-            3 condutores para conexão dos terminais de fase, neutro e terra. A distância foi ajustada para 0,8 m.
+            3 condutores para conexão dos terminais de fase, neutro e terra.
+          </p>
+          <p style={pJ}>
+            A distância entre os terminais de saída da LISN e os terminais do equipamento em ensaio foi ajustada para 0,8 m.
           </p>
           <p style={pJ}>As medições foram realizadas tanto no condutor fase como no condutor neutro, um de cada vez.</p>
 
           <p style={pTitle}>1.1 Limites (Item 4 da Norma NBR IEC/CISPR 15/2014)</p>
-          <p style={{ ...pSub, marginTop: 8 }}>1.1.1. Terminais de alimentação (Item 4.3.1):</p>
+          <p style={{ ...pSub, marginTop: 6 }}>1.1.1. Terminais de alimentação (Item 4.3.1 da Norma NBR IEC/CISPR 15/2014):</p>
           <LimitTable {...limCond1} />
-          <p style={{ ...pSub, marginTop: 14 }}>1.1.2. Terminais de carga (Item 4.3.2):</p>
+          <p style={{ ...pSub, marginTop: 6 }}>1.1.2. Terminais de carga (Item 4.3.2 da Norma NBR IEC/CISPR 15/2014):</p>
           <LimitTable {...limCond2} />
-          <p style={{ ...pSub, marginTop: 14 }}>1.1.3. Terminais de controle (Item 4.3.3):</p>
+          <p style={{ ...pSub, marginTop: 6 }}>1.1.3. Terminais de controle (Item 4.3.3 da Norma NBR IEC/CISPR 15/2014):</p>
           <LimitTable {...limCond3} />
+        </Page>
+
+        {/* ══ PÁGINA 3 — RADIADAS 9 kHz–300 MHz ══ */}
+        <Page flow>
+          <PageHeader cfg={cfg} numDisplay={displayNum} />
 
           <p style={pTitle}>
-            2. Método de medição das perturbações eletromagnéticas radiadas na faixa de 9 kHz a 30 MHz (Item 9)
+            2. Método de medição das perturbações eletromagnéticas radiadas na faixa de 9 kHz a 30 MHz (Item 9 da Norma NBR IEC/CISPR 15/2014)
           </p>
           <p style={pJ}>
-            O equipamento em ensaio foi posicionado sobre uma mesa não condutora no centro da antena loop de 2,0 m.
+            O equipamento a ser medido foi posicionado sobre uma mesa não condutora no centro da antena loop de 2,0 m.
+          </p>
+          <p style={pJ}>
             O receptor de medição foi conectado à antena loop por cabo coaxial blindado e a seleção de cada loop
-            das 3 direções do campo foi efetuada através de uma chave coaxial. Medições de quase-pico foram realizadas
-            apenas nas frequências em que as emissões de pico estavam próximas ou ultrapassaram a margem de 6 dB abaixo
+            das 3 direções do campo foi efetuada através de uma chave coaxial.
+          </p>
+          <p style={pJ}>
+            As medições foram feitas na faixa de frequências de 9 kHz a 30 MHz. As medições de quase pico foram realizadas
+            apenas nas frequências em que as emissões de pico estavam próximas ou ultrapassaram a uma margem de 6 dB abaixo
             da linha de limite de quase-pico.
           </p>
-          <p style={{ ...pSub, marginTop: 14 }}>2.1.1. Faixa de 9 kHz a 30 MHz (Item 4.4.1):</p>
+
+          <p style={pTitle}>2.1 Limites (Item 4 da Norma NBR IEC/CISPR 15/2014)</p>
+          <p style={{ ...pSub, marginTop: 6 }}>2.1.1. Faixa de 9 kHz a 30 MHz (Item 4.4.1 da Norma NBR IEC/CISPR 15/2014):</p>
           <LimitTable {...limRad1} />
 
           <p style={pTitle}>
-            3. Método de medição das perturbações eletromagnéticas radiadas na faixa de 30 MHz a 300 MHz (Item 9)
+            3. Método de medição das perturbações eletromagnéticas radiadas na faixa de 30 MHz a 300 MHz (Item 9 da Norma NBR IEC/CISPR 15/2014)
           </p>
           <p style={pJ}>
-            O equipamento em ensaio foi colocado sobre blocos não condutivos (10 cm), sobre placa de metal ligada à terra.
-            O equipamento foi ligado a uma rede de acoplamento/desacoplamento (CDN), montado sobre placa de metal conectada ao terra.
+            Ensaios na faixa de 30 MHz a 300 MHz podem ser realizados através das especificações do Anexo B e com os
+            limites apresentados abaixo, conforme a norma.
           </p>
-          <p style={{ ...pSub, marginTop: 14 }}>3.1. Faixa de 30 MHz a 300 MHz (Item 4.4.2):</p>
+          <p style={pJ}>
+            O equipamento em ensaio foi colocado sobre blocos não condutivos com 10 cm de altura, sobre plano de referência
+            de aterramento (ground plane) com dimensões pelo menos 20 cm maiores que as dimensões do equipamento ensaiado.
+          </p>
+          <p style={pJ}>
+            O equipamento foi ligado a uma rede de acoplamento/desacoplamento (CDN), montada sobre placa de metal conectada ao terra.
+          </p>
+          <p style={{ ...pSub, marginTop: 6 }}>3.1. Faixa de 30 MHz a 300 MHz (Item 4.4.2 da Norma NBR IEC/CISPR 15/2014):</p>
           <LimitTable {...limRad2} />
         </Page>
 
         {/* ══ PÁGINAS — RESULTADOS RADIMATION ══ */}
         {(!docx.html || docx.loading) && (
           <Page flow>
-            <PageHeader cfg={cfg} />
+            <PageHeader cfg={cfg} numDisplay={displayNum} />
             <SecHeader>Parte 2 – Resultados dos Ensaios</SecHeader>
             {!docx.html && !docx.loading && (
               <label className="upload-zone no-print flex flex-col items-center gap-2 p-6 mb-4 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 hover:border-yellow-300 cursor-pointer transition-all">
@@ -614,7 +850,7 @@ export default function Cispr15RelatorioPage() {
         )}
         {docx.html && docxPages.map((pageHtml, i) => (
           <Page key={`docx-${i}`} flow>
-            <PageHeader cfg={cfg} />
+            <PageHeader cfg={cfg} numDisplay={displayNum} />
             {i === 0 && (
               <>
                 <div className="upload-zone no-print flex items-center justify-between px-3 py-2 mb-2 rounded-lg border border-green-200 bg-green-50">
@@ -625,7 +861,7 @@ export default function Cispr15RelatorioPage() {
                     <X size={12} />
                   </button>
                 </div>
-                <SecHeader>Parte 2 – Resultados dos Ensaios</SecHeader>
+                <SecHeader>Parte 2 – Resultados dos Ensaios<Sup n={markerFor('resultados')} /></SecHeader>
               </>
             )}
             <div className="doc-content" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11pt' }}
@@ -634,13 +870,17 @@ export default function Cispr15RelatorioPage() {
         ))}
 
         {/* ══ PÁGINA — INCERTEZAS ══ */}
-        <Page>
-          <PageHeader cfg={cfg} />
+        <Page flow>
+          <PageHeader cfg={cfg} numDisplay={displayNum} />
           <SecHeader>Incertezas de Medição (IM)</SecHeader>
           <p style={pJ}>
             A incerteza expandida de medição relatada é declarada como a incerteza padrão de medição multiplicada pelo
             fator de abrangência "k", para uma distribuição de probabilidade tipo t-Student, com graus de liberdade efetivos
-            correspondentes a um nível de confiança de aproximadamente 95%.
+            (veff) correspondentes a um nível de confiança de aproximadamente 95%.
+          </p>
+          <p style={pJ}>
+            A incerteza padrão da medição foi determinada de acordo com o "Guia para Expressão da Incerteza de Medição",
+            Terceira Edição Brasileira.
           </p>
           <LimitTable
             cols={['Item da norma', 'Mensurando', 'Faixa ou ponto de medição', 'Incerteza de medição', 'Fator de abrangência (k)']}
@@ -657,9 +897,11 @@ export default function Cispr15RelatorioPage() {
         {photoPages.map((pair, pi) => {
           // Altura disponível para as 2 fotos (mm): página A4 − margens − header − secHeader(só pg0)
           const slotHeightMm = pi === 0 ? 103 : 116
+          // Fotos 1 e 2 mais largas; fotos 3+ ligeiramente menores
+          const slotMaxWidthMm = pi === 0 ? photoWidth : Math.max(Math.min(photoWidth, 140), 60)
           return (
             <Page key={`foto-${pi}`}>
-              <PageHeader cfg={cfg} />
+              <PageHeader cfg={cfg} numDisplay={displayNum} />
               {pi === 0 && <SecHeader>Fotos da Amostra</SecHeader>}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {[0, 1].map(slot => {
@@ -690,7 +932,7 @@ export default function Cispr15RelatorioPage() {
                           <img
                             src={ph.url} alt={`Figura ${figNum}`}
                             style={{
-                              maxWidth: `${photoWidth}mm`,
+                              maxWidth: `${slotMaxWidthMm}mm`,
                               maxHeight: `${slotHeightMm - 14}mm`,
                               width: 'auto',
                               height: 'auto',
@@ -700,7 +942,7 @@ export default function Cispr15RelatorioPage() {
                             }}
                           />
                           <p style={{ fontSize: FS.xs, color: '#555', marginTop: 5, textAlign: 'center', flexShrink: 0 }}>
-                            Figura {figNum} – Amostra ensaiada
+                            Figura {figNum} – Amostra ensaiada<Sup n={markerFor(`foto_${figNum}`)} />
                           </p>
                         </>
                       ) : null}
@@ -712,9 +954,38 @@ export default function Cispr15RelatorioPage() {
           )
         })}
 
+        {/* ══ SEÇÃO 6 — HISTÓRICO DE ALTERAÇÕES (só em modo emenda) ══ */}
+        {emendaDraft && emendaDraft.alteracoes.length > 0 && (
+          <Page flow>
+            <PageHeader cfg={cfg} numDisplay={displayNum} />
+            <SecHeader>6. Histórico de Alterações</SecHeader>
+            <p style={pJ}>
+              Emenda n° {emendaDraft.emendaNum} emitida em {fmtDate(emendaDraft.dataEmenda)},
+              referente ao Relatório de Ensaio n° {emendaDraft.numRelatorioOriginal}.
+              As alterações identificadas em relação ao documento original são listadas abaixo:
+            </p>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, fontSize: FS.sm }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #ccc', padding: '3px 8px', background: GRAY1, width: '8%', textAlign: 'center' }}>N°</th>
+                  <th style={{ border: '1px solid #ccc', padding: '3px 8px', background: GRAY1, textAlign: 'left' }}>Descrição da Alteração</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emendaDraft.alteracoes.map((a, i) => (
+                  <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#f5f8ff' }}>
+                    <td style={{ border: '1px solid #ccc', padding: '3px 8px', textAlign: 'center', fontWeight: 700, color: '#c00' }}>{a.marker}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '3px 8px' }}>{a.descricao}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Page>
+        )}
+
         {/* ══ ÚLTIMA PÁGINA — OBSERVAÇÕES FINAIS ══ */}
-        <Page>
-          <PageHeader cfg={cfg} />
+        <Page flow>
+          <PageHeader cfg={cfg} numDisplay={displayNum} />
           <SecHeader>Observações Finais</SecHeader>
           {[
             'Este relatório de ensaio atende aos requisitos de acreditação da Cgcre, que avaliou a competência do laboratório.',
@@ -729,10 +1000,14 @@ export default function Cispr15RelatorioPage() {
             <p key={i} style={{ ...pJ, marginLeft: 10 }}>• {obs}</p>
           ))}
 
-          <div style={{ marginTop: 50, display: 'flex', justifyContent: 'center' }}>
+          {/* Signatário — absolutamente posicionado no fundo da página, acima do rodapé */}
+          <div style={{
+            position: 'absolute', bottom: '10mm', left: 0, right: 0,
+            display: 'flex', justifyContent: 'center',
+          }}>
             <div style={{ textAlign: 'center', minWidth: 260 }}>
               <div style={{ borderTop: '1px solid #333', paddingTop: 8 }}>
-                <p style={{ fontSize: FS.sm, color: '#333' }}>Signatário Autorizado</p>
+                <p style={{ fontSize: FS.sm, color: '#333', marginBottom: 2 }}>Signatário Autorizado</p>
                 <p style={{ fontSize: FS.xs, color: '#666' }}>LABELO-PUCRS</p>
               </div>
             </div>
