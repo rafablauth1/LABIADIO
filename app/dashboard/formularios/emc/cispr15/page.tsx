@@ -4,13 +4,13 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Lightbulb, Lamp, ArrowRight, Upload, X, Loader2,
-  Trash2, CheckCircle2, FileText, FolderOpen, Users, Database, History, BookOpen, AlertTriangle,
+  Trash2, CheckCircle2, FileText, FolderOpen, Users, Database, History, BookOpen, AlertTriangle, Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   type Cispr15Config, type LoteConfig, type ClienteDB, type RelatorioSalvo, DEFAULTS,
   CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY, LOTE_KEY, CLIENTES_KEY,
-  RELATORIOS_KEY, RELATORIO_DOCX_PFX, EMENDA_DRAFT_KEY,
+  RELATORIOS_KEY, RELATORIO_DOCX_PFX, EMENDA_DRAFT_KEY, LOCKED_KEY,
   newAmostra,
 } from './types'
 import { ClientesTab }   from './ClientesTab'
@@ -77,6 +77,9 @@ export default function Cispr15ConfigPage() {
   const [flash,        setFlash]       = useState<string | null>(null)
   const [pastaLoading, setPastaLoading] = useState(false)
   const [gerandoRel,   setGerandoRel]  = useState(false)
+  const [locked,       setLocked]      = useState(false)
+  const [showPwdModal, setShowPwdModal] = useState(false)
+  const [pwdInput,     setPwdInput]    = useState('')
   const [tab, setTab] = useState<'formulario' | 'clientes' | 'relatorios'>('formulario')
   const photoRef  = useRef<HTMLInputElement>(null)
   const pastaRef  = useRef<HTMLInputElement>(null)
@@ -102,6 +105,7 @@ export default function Cispr15ConfigPage() {
     const dHtml = sessionStorage.getItem(DOCX_HTML_KEY)
     const dName = sessionStorage.getItem(DOCX_NAME_KEY)
     if (dHtml) setDocx({ loading: false, html: dHtml, filename: dName })
+    if (localStorage.getItem(LOCKED_KEY)) setLocked(true)
   }, [])
 
   useEffect(() => {
@@ -139,11 +143,12 @@ export default function Cispr15ConfigPage() {
 
   function limparDados() {
     if (!confirm('Limpar TODOS os dados do formulário e anexos?')) return
-    ;[CFG_KEY, PHOTOS_KEY].forEach(k => localStorage.removeItem(k))
+    ;[CFG_KEY, PHOTOS_KEY, LOCKED_KEY].forEach(k => localStorage.removeItem(k))
     ;[DOCX_HTML_KEY, DOCX_NAME_KEY].forEach(k => sessionStorage.removeItem(k))
     setCfg(DEFAULTS)
     setPhotos([])
     setDocx({ loading: false, html: null, filename: null })
+    setLocked(false)
     setFlash(null)
   }
 
@@ -362,8 +367,10 @@ export default function Cispr15ConfigPage() {
         localStorage.setItem(CFG_KEY, JSON.stringify(finalCfg))
       }
 
-      // Salvar no histórico local
+      // Salvar no histórico local e bloquear o formulário
       salvarRelatorioLocal(finalCfg)
+      localStorage.setItem(LOCKED_KEY, '1')
+      setLocked(true)
 
       flash4(`Registrado: ${finalCfg.numRelatorio}`)
       router.push('/dashboard/formularios/emc/cispr15/relatorio')
@@ -471,17 +478,36 @@ export default function Cispr15ConfigPage() {
 
       {tab === 'formulario' && <div className="space-y-5">
 
+        {/* ── Banner de lock ── */}
+        {locked && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/20 text-amber-400">
+            <Lock size={16} className="shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">Formulário bloqueado</p>
+              <p className="text-[11px] text-amber-400/70">
+                Relatório {cfg.numRelatorio} já foi emitido. Para alterar dados, clique em <b>Gerar Emenda</b>.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* cards do formulário — bloqueados quando locked */}
+        <div className={cn(locked && 'opacity-55 pointer-events-none select-none')}>
+        <div className="space-y-5">
+
         {/* ── Tipo de DUT ── */}
         <div className="card p-5">
           <p className="form-section mb-4">Tipo de DUT</p>
           <div className="grid grid-cols-2 gap-3">
             {(['lampada', 'luminaria'] as const).map(t => (
-              <button key={t} type="button" onClick={() => setTipo(t)}
+              <button key={t} type="button" onClick={() => !locked && setTipo(t)}
+                disabled={locked}
                 className={cn(
                   'flex flex-col items-center gap-3 p-5 rounded-xl border transition-all duration-150',
                   cfg.tipo === t
                     ? 'border-gold bg-gold/8 text-gold'
                     : 'border-white/8 bg-navy/60 text-white/40 hover:border-white/20 hover:text-white/60',
+                  locked && 'opacity-60 cursor-not-allowed',
                 )}>
                 {t === 'lampada' ? <Lightbulb size={26} strokeWidth={1.5} /> : <Lamp size={26} strokeWidth={1.5} />}
                 <div className="text-center">
@@ -504,7 +530,8 @@ export default function Cispr15ConfigPage() {
                   <input type="radio" name="tensaoConfig" value={opt.value}
                     checked={cfg.tensaoConfig === opt.value}
                     onChange={() => setCfg(prev => ({ ...prev, tensaoConfig: opt.value }))}
-                    className="w-4 h-4 accent-gold cursor-pointer" />
+                    disabled={locked}
+                    className="w-4 h-4 accent-gold cursor-pointer disabled:cursor-not-allowed" />
                   <span className="text-sm text-white/70 group-hover:text-white/90 transition-colors">
                     <span className="font-semibold text-white/90">{opt.label}</span>
                     <span className="text-white/30 text-xs ml-1.5">— {opt.sub}</span>
@@ -710,6 +737,9 @@ export default function Cispr15ConfigPage() {
           </div>
         </div>
 
+        </div>{/* /space-y-5 inner */}
+        </div>{/* /locked wrapper */}
+
         {/* ── Status de validação ── */}
         {validationErrors.length > 0 ? (
           <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-500/6 border border-amber-500/15 text-amber-400/80 text-[11px]">
@@ -746,9 +776,11 @@ export default function Cispr15ConfigPage() {
             <Users size={14} /> Emitir Lote
           </button>
 
-          <button type="button" onClick={() => router.push('/dashboard/formularios/emc/cispr15/emenda')}
+          <button type="button"
+            onClick={() => locked ? setShowPwdModal(true) : router.push('/dashboard/formularios/emc/cispr15/emenda')}
             className="btn-secondary flex items-center gap-2 px-4 py-2.5 text-sm">
-            <History size={14} /> Gerar Emenda
+            {locked ? <Lock size={14} /> : <History size={14} />}
+            Gerar Emenda
           </button>
 
           <button type="button" onClick={() => router.push('/dashboard/formularios/emc/cispr15/relatorio')}
@@ -756,14 +788,20 @@ export default function Cispr15ConfigPage() {
             <FileText size={14} /> Ver PDF
           </button>
 
-          <button type="button" onClick={gerarRelatorio} disabled={gerandoRel}
-            className={cn(
-              'btn-primary flex items-center gap-2 px-5 py-2.5 text-sm font-bold',
-              validationErrors.length > 0 && 'opacity-50 cursor-not-allowed',
-            )}>
-            {gerandoRel ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={15} />}
-            {gerandoRel ? 'Registrando…' : 'Gerar Relatório'}
-          </button>
+          {locked ? (
+            <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green/10 border border-green/20 text-green-400 text-sm font-semibold">
+              <CheckCircle2 size={15} /> Relatório Emitido
+            </div>
+          ) : (
+            <button type="button" onClick={gerarRelatorio} disabled={gerandoRel}
+              className={cn(
+                'btn-primary flex items-center gap-2 px-5 py-2.5 text-sm font-bold',
+                validationErrors.length > 0 && 'opacity-50 cursor-not-allowed',
+              )}>
+              {gerandoRel ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={15} />}
+              {gerandoRel ? 'Registrando…' : 'Gerar Relatório'}
+            </button>
+          )}
         </div>
 
         {flash && (
@@ -773,6 +811,68 @@ export default function Cispr15ConfigPage() {
         )}
 
       </div>}
+
+      {/* ── Modal de senha para Emenda ── */}
+      {showPwdModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="card w-full max-w-sm mx-4 p-6 space-y-5 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/12 border border-amber-500/20 flex items-center justify-center">
+                <Lock size={18} className="text-amber-400" />
+              </div>
+              <div>
+                <p className="font-bold text-white text-sm">Autenticação necessária</p>
+                <p className="text-[11px] text-white/40">Formulário bloqueado — informe a senha para continuar</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-white/35 uppercase tracking-widest font-mono">Senha</label>
+              <input
+                type="password"
+                className="input"
+                placeholder="••••••"
+                value={pwdInput}
+                onChange={e => setPwdInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    if (pwdInput === '123') {
+                      setShowPwdModal(false)
+                      setPwdInput('')
+                      router.push('/dashboard/formularios/emc/cispr15/emenda')
+                    } else {
+                      alert('Senha incorreta.')
+                      setPwdInput('')
+                    }
+                  }
+                  if (e.key === 'Escape') { setShowPwdModal(false); setPwdInput('') }
+                }}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button type="button"
+                onClick={() => { setShowPwdModal(false); setPwdInput('') }}
+                className="px-4 py-2 rounded-lg border border-white/10 text-white/40 hover:text-white/70 text-sm transition-all">
+                Cancelar
+              </button>
+              <button type="button"
+                onClick={() => {
+                  if (pwdInput === '123') {
+                    setShowPwdModal(false)
+                    setPwdInput('')
+                    router.push('/dashboard/formularios/emc/cispr15/emenda')
+                  } else {
+                    alert('Senha incorreta.')
+                    setPwdInput('')
+                  }
+                }}
+                className="btn-primary px-5 py-2 text-sm font-bold flex items-center gap-2">
+                <ArrowRight size={14} /> Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

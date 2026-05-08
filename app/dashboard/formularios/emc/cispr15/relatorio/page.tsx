@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import {
   type Cispr15Config, type EmendaDraft, type RelatorioSalvo,
   getTensoes, CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY,
-  RELATORIOS_KEY, EMENDA_DRAFT_KEY,
+  RELATORIOS_KEY, EMENDA_DRAFT_KEY, formatEmendaNumero,
 } from '../types'
 
 /* ─── tipos ────────────────────────────────────────────────────────────────── */
@@ -327,7 +327,7 @@ export default function Cispr15RelatorioPage() {
     return emendaDraft?.alteracoes.find(a => a.campo === campo)?.marker ?? null
   }
   const displayNum = emendaDraft
-    ? `${cfg.numRelatorio} – Emenda ${emendaDraft.emendaNum}`
+    ? formatEmendaNumero(cfg.numRelatorio, emendaDraft.emendaNum)
     : cfg.numRelatorio
 
   /* ── tabelas de limites CISPR 15 ── */
@@ -953,7 +953,7 @@ export default function Cispr15RelatorioPage() {
             <PageHeader cfg={cfg} numDisplay={displayNum} />
             <SecHeader>6. Histórico de Alterações</SecHeader>
             <p style={pJ}>
-              Emenda n° {emendaDraft.emendaNum} emitida em {fmtDate(emendaDraft.dataEmenda)},
+              Emenda <b>{formatEmendaNumero(emendaDraft.numRelatorioOriginal, emendaDraft.emendaNum)}</b> emitida em {fmtDate(emendaDraft.dataEmenda)},
               referente ao Relatório de Ensaio n° {emendaDraft.numRelatorioOriginal}.
               As alterações identificadas em relação ao documento original são listadas abaixo:
             </p>

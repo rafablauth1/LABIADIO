@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import {
   type Cispr15Config, type RelatorioSalvo, type AmendmentChange, type EmendaDraft,
   DEFAULTS, CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY,
-  RELATORIOS_KEY, EMENDA_DRAFT_KEY, RELATORIO_DOCX_PFX, today,
+  RELATORIOS_KEY, EMENDA_DRAFT_KEY, RELATORIO_DOCX_PFX, today, formatEmendaNumero,
 } from '../types'
 
 /* ─── diff engine ─────────────────────────────────────────────────────────── */
@@ -208,8 +208,8 @@ export default function EmendaPage() {
         </div>
         {selected && (
           <p className="text-[10px] text-white/25 font-mono mt-2">
-            Emendas anteriores: {selected.emendas.length === 0 ? 'nenhuma' : selected.emendas.map(e => `Emenda ${e.numero}`).join(', ')} ·
-            Próxima: Emenda {(selected.emendas.length || 0) + 1}
+            Emendas anteriores: {selected.emendas.length === 0 ? 'nenhuma' : selected.emendas.map(e => formatEmendaNumero(selected.numRelatorio, e.numero)).join(', ')} ·
+            Próxima: {formatEmendaNumero(selected.numRelatorio, (selected.emendas.length || 0) + 1)}
           </p>
         )}
       </div>
@@ -357,7 +357,7 @@ export default function EmendaPage() {
           onClick={gerarEmenda}
           disabled={alteracoes.length === 0}
           className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm font-bold disabled:opacity-40">
-          <History size={14} /> Gerar Emenda {selected ? (selected.emendas.length || 0) + 1 : ''}
+          <History size={14} /> Gerar {selected ? formatEmendaNumero(selected.numRelatorio, (selected.emendas.length || 0) + 1) : 'Emenda'}
         </button>
       </div>
     </div>

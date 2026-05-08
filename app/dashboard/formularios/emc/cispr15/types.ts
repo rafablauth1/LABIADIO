@@ -99,6 +99,15 @@ export const CLIENTES_KEY    = 'cispr15_clientes_v1'
 export const RELATORIOS_KEY      = 'cispr15_relatorios_v1'
 export const EMENDA_DRAFT_KEY    = 'cispr15_emenda_draft_v1'
 export const RELATORIO_DOCX_PFX  = 'cispr15_docx_v1_'
+export const LOCKED_KEY          = 'cispr15_locked_v1'
+
+/** EMC 1244/2026 + emenda 1 → EMC1244a/2026 */
+export function formatEmendaNumero(numRelatorio: string, emendaNum: number): string {
+  const letter = String.fromCharCode(96 + Math.min(emendaNum, 26))
+  if (!numRelatorio) return `Emenda ${letter}`
+  const clean = numRelatorio.replace(/\s+/g, '')
+  return clean.includes('/') ? clean.replace('/', `${letter}/`) : `${clean}${letter}`
+}
 
 export interface AmendmentChange {
   marker: number
