@@ -234,8 +234,8 @@ export default function Cispr15RelatorioPage() {
       const rawE = localStorage.getItem(EMENDA_DRAFT_KEY)
       if (rawE) setEmendaDraft(JSON.parse(rawE))
     } catch {}
-    const dHtml = localStorage.getItem(DOCX_HTML_KEY)
-    const dName = localStorage.getItem(DOCX_NAME_KEY)
+    const dHtml = sessionStorage.getItem(DOCX_HTML_KEY)
+    const dName = sessionStorage.getItem(DOCX_NAME_KEY)
     if (dHtml) setDocx({ loading: false, html: dHtml, filename: dName })
     try {
       const rawP = localStorage.getItem(PHOTOS_KEY)
@@ -272,8 +272,8 @@ export default function Cispr15RelatorioPage() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setDocx({ loading: false, html: data.html, filename: file.name })
-      try { localStorage.setItem(DOCX_HTML_KEY, data.html) } catch {}
-      try { localStorage.setItem(DOCX_NAME_KEY, file.name) } catch {}
+      sessionStorage.setItem(DOCX_HTML_KEY, data.html)
+      sessionStorage.setItem(DOCX_NAME_KEY, file.name)
     } catch (err: any) {
       alert(`Erro ao processar: ${err.message}`)
       setDocx({ loading: false, html: null, filename: null })
@@ -849,7 +849,7 @@ export default function Cispr15RelatorioPage() {
                 <div className="upload-zone no-print flex items-center justify-between px-3 py-2 mb-2 rounded-lg border border-green-200 bg-green-50">
                   <span className="text-green-700 text-[10px] font-mono truncate">{docx.filename}</span>
                   <button
-                    onClick={() => { setDocx({ loading: false, html: null, filename: null }); localStorage.removeItem(DOCX_HTML_KEY); localStorage.removeItem(DOCX_NAME_KEY) }}
+                    onClick={() => { setDocx({ loading: false, html: null, filename: null }); sessionStorage.removeItem(DOCX_HTML_KEY); sessionStorage.removeItem(DOCX_NAME_KEY) }}
                     className="text-gray-400 hover:text-red-500 ml-2 flex-shrink-0">
                     <X size={12} />
                   </button>

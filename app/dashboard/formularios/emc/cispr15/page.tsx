@@ -99,8 +99,8 @@ export default function Cispr15ConfigPage() {
         setPhotos(arr.map(p => ({ ...p, url: `data:image/jpeg;base64,${p.base64}` })))
       }
     } catch {}
-    const dHtml = localStorage.getItem(DOCX_HTML_KEY)
-    const dName = localStorage.getItem(DOCX_NAME_KEY)
+    const dHtml = sessionStorage.getItem(DOCX_HTML_KEY)
+    const dName = sessionStorage.getItem(DOCX_NAME_KEY)
     if (dHtml) setDocx({ loading: false, html: dHtml, filename: dName })
   }, [])
 
@@ -139,7 +139,8 @@ export default function Cispr15ConfigPage() {
 
   function limparDados() {
     if (!confirm('Limpar TODOS os dados do formulário e anexos?')) return
-    ;[CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY].forEach(k => localStorage.removeItem(k))
+    ;[CFG_KEY, PHOTOS_KEY].forEach(k => localStorage.removeItem(k))
+    ;[DOCX_HTML_KEY, DOCX_NAME_KEY].forEach(k => sessionStorage.removeItem(k))
     setCfg(DEFAULTS)
     setPhotos([])
     setDocx({ loading: false, html: null, filename: null })
@@ -196,8 +197,8 @@ export default function Cispr15ConfigPage() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setDocx({ loading: false, html: data.html, filename: file.name })
-      try { localStorage.setItem(DOCX_HTML_KEY, data.html) } catch {}
-      try { localStorage.setItem(DOCX_NAME_KEY, file.name)  } catch {}
+      sessionStorage.setItem(DOCX_HTML_KEY, data.html)
+      sessionStorage.setItem(DOCX_NAME_KEY, file.name)
     } catch (err: any) {
       alert(`Erro ao processar o arquivo: ${err.message}`)
       setDocx({ loading: false, html: null, filename: null })
@@ -206,8 +207,8 @@ export default function Cispr15ConfigPage() {
 
   function removeDocx() {
     setDocx({ loading: false, html: null, filename: null })
-    localStorage.removeItem(DOCX_HTML_KEY)
-    localStorage.removeItem(DOCX_NAME_KEY)
+    sessionStorage.removeItem(DOCX_HTML_KEY)
+    sessionStorage.removeItem(DOCX_NAME_KEY)
   }
 
   /* ── importar JSON ── */
@@ -279,32 +280,32 @@ export default function Cispr15ConfigPage() {
 
   /* ── carregar relatório salvo ── */
   function handleCarregarRelatorio(entry: RelatorioSalvo) {
+    const docxHtml = localStorage.getItem(RELATORIO_DOCX_PFX + entry.id)
     setCfg(entry.cfg)
     setPhotos(entry.photos.map(p => ({ ...p, url: `data:image/jpeg;base64,${p.base64}` })))
-    const docxHtml = localStorage.getItem(RELATORIO_DOCX_PFX + entry.id)
     setDocx({ loading: false, html: docxHtml, filename: entry.docxFilename })
     localStorage.setItem(CFG_KEY, JSON.stringify(entry.cfg))
     localStorage.setItem(PHOTOS_KEY, JSON.stringify(entry.photos))
-    if (docxHtml) localStorage.setItem(DOCX_HTML_KEY, docxHtml)
-    else localStorage.removeItem(DOCX_HTML_KEY)
-    localStorage.setItem(DOCX_NAME_KEY, entry.docxFilename ?? '')
     localStorage.removeItem(EMENDA_DRAFT_KEY)
+    if (docxHtml) sessionStorage.setItem(DOCX_HTML_KEY, docxHtml)
+    else sessionStorage.removeItem(DOCX_HTML_KEY)
+    sessionStorage.setItem(DOCX_NAME_KEY, entry.docxFilename ?? '')
     setTab('formulario')
     flash4(`Relatório "${entry.numRelatorio}" carregado`)
   }
 
   /* ── ver PDF de relatório salvo ── */
   function handleVerPDFRelatorio(entry: RelatorioSalvo) {
+    const docxHtml = localStorage.getItem(RELATORIO_DOCX_PFX + entry.id)
     setCfg(entry.cfg)
     setPhotos(entry.photos.map(p => ({ ...p, url: `data:image/jpeg;base64,${p.base64}` })))
-    const docxHtml = localStorage.getItem(RELATORIO_DOCX_PFX + entry.id)
     setDocx({ loading: false, html: docxHtml, filename: entry.docxFilename })
     localStorage.setItem(CFG_KEY, JSON.stringify(entry.cfg))
     localStorage.setItem(PHOTOS_KEY, JSON.stringify(entry.photos))
-    if (docxHtml) localStorage.setItem(DOCX_HTML_KEY, docxHtml)
-    else localStorage.removeItem(DOCX_HTML_KEY)
-    localStorage.setItem(DOCX_NAME_KEY, entry.docxFilename ?? '')
     localStorage.removeItem(EMENDA_DRAFT_KEY)
+    if (docxHtml) sessionStorage.setItem(DOCX_HTML_KEY, docxHtml)
+    else sessionStorage.removeItem(DOCX_HTML_KEY)
+    sessionStorage.setItem(DOCX_NAME_KEY, entry.docxFilename ?? '')
     router.push('/dashboard/formularios/emc/cispr15/relatorio')
   }
 

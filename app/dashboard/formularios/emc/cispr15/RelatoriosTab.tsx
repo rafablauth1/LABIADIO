@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FileText, Trash2, FolderOpen, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { type RelatorioSalvo, RELATORIOS_KEY, RELATORIO_DOCX_PFX, CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY, EMENDA_DRAFT_KEY } from './types'
+import { type RelatorioSalvo, RELATORIOS_KEY, RELATORIO_DOCX_PFX } from './types'
 
 function fmtDate(iso: string) {
   if (!iso) return '—'
