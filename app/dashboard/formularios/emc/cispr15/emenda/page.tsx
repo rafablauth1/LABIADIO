@@ -6,7 +6,8 @@ import { ArrowLeft, History, CheckCircle2, AlertCircle, ChevronDown } from 'luci
 import { cn } from '@/lib/utils'
 import {
   type Cispr15Config, type RelatorioSalvo, type AmendmentChange, type EmendaDraft,
-  DEFAULTS, CFG_KEY, RELATORIOS_KEY, EMENDA_DRAFT_KEY, today,
+  DEFAULTS, CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY,
+  RELATORIOS_KEY, EMENDA_DRAFT_KEY, RELATORIO_DOCX_PFX, today,
 } from '../types'
 
 /* ─── diff engine ─────────────────────────────────────────────────────────── */
@@ -144,6 +145,14 @@ export default function EmendaPage() {
     }
     localStorage.setItem(EMENDA_DRAFT_KEY, JSON.stringify(draft))
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg))
+
+    // Restaurar fotos e docx do relatório original para os storages de trabalho
+    try { localStorage.setItem(PHOTOS_KEY, JSON.stringify(selected.photos)) } catch {}
+    const docxHtml = localStorage.getItem(RELATORIO_DOCX_PFX + selected.id)
+    if (docxHtml) sessionStorage.setItem(DOCX_HTML_KEY, docxHtml)
+    else sessionStorage.removeItem(DOCX_HTML_KEY)
+    sessionStorage.setItem(DOCX_NAME_KEY, selected.docxFilename ?? '')
+
     router.push('/dashboard/formularios/emc/cispr15/relatorio')
   }
 
