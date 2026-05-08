@@ -43,11 +43,27 @@ function findNextEmptyRow(rows: any[][]): number {
   return -1
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const checkProtocolo = request.nextUrl.searchParams.get('checkProtocolo')
+
   try {
     const wb = readWorkbook()
     const ws = wb.Sheets[wb.SheetNames[0]]
     const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][]
+
+    if (checkProtocolo !== null) {
+      const needle = checkProtocolo.trim().toLowerCase()
+      for (const row of rows) {
+        const cell = String(row[6] ?? '').trim().toLowerCase()
+        if (cell && cell === needle) {
+          const num = row[2]
+          const year = new Date().getFullYear()
+          return NextResponse.json({ exists: true, numRelatorio: num ? `EMC ${num}/${year}` : undefined })
+        }
+      }
+      return NextResponse.json({ exists: false })
+    }
+
     const idx = findNextEmptyRow(rows)
     if (idx === -1) return NextResponse.json({ error: 'Sem linhas disponíveis' }, { status: 400 })
     const num = parseInt(String(rows[idx][2]), 10)

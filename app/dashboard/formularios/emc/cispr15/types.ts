@@ -96,8 +96,9 @@ export const DOCX_HTML_KEY   = 'cispr15_docx_html_v3'
 export const DOCX_NAME_KEY   = 'cispr15_docx_name_v3'
 export const LOTE_KEY        = 'cispr15_lote_v1'
 export const CLIENTES_KEY    = 'cispr15_clientes_v1'
-export const RELATORIOS_KEY  = 'cispr15_relatorios_v1'
-export const EMENDA_DRAFT_KEY = 'cispr15_emenda_draft_v1'
+export const RELATORIOS_KEY      = 'cispr15_relatorios_v1'
+export const EMENDA_DRAFT_KEY    = 'cispr15_emenda_draft_v1'
+export const RELATORIO_DOCX_PFX  = 'cispr15_docx_v1_'
 
 export interface AmendmentChange {
   marker: number
@@ -121,8 +122,10 @@ export interface RelatorioSalvo {
   numRelatorio: string
   dataEmissao: string
   clienteNome: string
+  protocolo: string
+  produto: string
   cfg: Cispr15Config
-  photoNames: string[]
+  photos: { name: string; base64: string }[]
   docxFilename: string | null
   emendas: { numero: number; dataEmenda: string; alteracoes: AmendmentChange[] }[]
 }

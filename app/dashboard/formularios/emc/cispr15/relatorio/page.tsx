@@ -593,29 +593,21 @@ export default function Cispr15RelatorioPage() {
               document.body.removeChild(a)
               setTimeout(() => URL.revokeObjectURL(url), 1000)
               setSavedFile(filename)
-              // auto-save RelatorioSalvo
+              // auto-save: apenas atualiza emendas se a entrada já existir
               try {
-                const photoNames = photos.map(p => p.name)
                 const raw = localStorage.getItem(RELATORIOS_KEY)
-                const lista: RelatorioSalvo[] = raw ? JSON.parse(raw) : []
-                const existingIdx = lista.findIndex(r => r.numRelatorio === cfg.numRelatorio)
-                const emendas = existingIdx >= 0 ? lista[existingIdx].emendas : []
-                if (emendaDraft && !emendas.find(e => e.numero === emendaDraft.emendaNum)) {
-                  emendas.push({ numero: emendaDraft.emendaNum, dataEmenda: emendaDraft.dataEmenda, alteracoes: emendaDraft.alteracoes })
+                if (raw && cfg.numRelatorio) {
+                  const lista: RelatorioSalvo[] = JSON.parse(raw)
+                  const existingIdx = lista.findIndex(r => r.numRelatorio === cfg.numRelatorio)
+                  if (existingIdx >= 0) {
+                    const emendas = [...lista[existingIdx].emendas]
+                    if (emendaDraft && !emendas.find(e => e.numero === emendaDraft.emendaNum)) {
+                      emendas.push({ numero: emendaDraft.emendaNum, dataEmenda: emendaDraft.dataEmenda, alteracoes: emendaDraft.alteracoes })
+                    }
+                    lista[existingIdx] = { ...lista[existingIdx], emendas }
+                    localStorage.setItem(RELATORIOS_KEY, JSON.stringify(lista))
+                  }
                 }
-                const novo: RelatorioSalvo = {
-                  id: existingIdx >= 0 ? lista[existingIdx].id : Date.now().toString(),
-                  numRelatorio: cfg.numRelatorio,
-                  dataEmissao: cfg.dataEmissao,
-                  clienteNome: cfg.cliente,
-                  cfg: { ...cfg },
-                  photoNames,
-                  docxFilename: docx.filename,
-                  emendas,
-                }
-                if (existingIdx >= 0) lista[existingIdx] = novo
-                else lista.push(novo)
-                localStorage.setItem(RELATORIOS_KEY, JSON.stringify(lista))
               } catch {}
             } catch (err: any) {
               // fallback: diálogo de impressão do browser

@@ -1,18 +1,20 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Lightbulb, Lamp, ArrowRight, Upload, X, Loader2,
-  Trash2, CheckCircle2, FileText, FolderOpen, Users, Database, History, BookOpen,
+  Trash2, CheckCircle2, FileText, FolderOpen, Users, Database, History, BookOpen, AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  type Cispr15Config, type LoteConfig, type ClienteDB, DEFAULTS,
+  type Cispr15Config, type LoteConfig, type ClienteDB, type RelatorioSalvo, DEFAULTS,
   CFG_KEY, PHOTOS_KEY, DOCX_HTML_KEY, DOCX_NAME_KEY, LOTE_KEY, CLIENTES_KEY,
+  RELATORIOS_KEY, RELATORIO_DOCX_PFX, EMENDA_DRAFT_KEY,
   newAmostra,
 } from './types'
-import { ClientesTab } from './ClientesTab'
+import { ClientesTab }   from './ClientesTab'
+import { RelatoriosTab } from './RelatoriosTab'
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 async function resizeToBase64(file: File, maxW = 1024): Promise<{ base64: string; url: string }> {
@@ -75,7 +77,7 @@ export default function Cispr15ConfigPage() {
   const [flash,        setFlash]       = useState<string | null>(null)
   const [pastaLoading, setPastaLoading] = useState(false)
   const [gerandoRel,   setGerandoRel]  = useState(false)
-  const [tab, setTab] = useState<'formulario' | 'clientes'>('formulario')
+  const [tab, setTab] = useState<'formulario' | 'clientes' | 'relatorios'>('formulario')
   const photoRef  = useRef<HTMLInputElement>(null)
   const pastaRef  = useRef<HTMLInputElement>(null)
   const cfgLoaded = useRef(false)
@@ -219,10 +221,129 @@ export default function Cispr15ConfigPage() {
     })))
   }
 
+  const labelId = cfg.tipo === 'lampada' ? 'Código de Barras' : 'Número de Série'
+
+  /* ── validação ── */
+  const validationErrors = useMemo(() => {
+    const errs: string[] = []
+    if (!cfg.cliente.trim())       errs.push('Nome do cliente')
+    if (!cfg.clienteRua.trim())    errs.push('Endereço do cliente')
+    if (!cfg.clienteCidade.trim()) errs.push('Cidade')
+    if (!cfg.produto.trim())       errs.push('Produto')
+    if (!cfg.fabricante.trim())    errs.push('Fabricante')
+    if (!cfg.modelo.trim())        errs.push('Modelo')
+    if (!cfg.identificador.trim()) errs.push(labelId)
+    if (!cfg.potencia.trim())      errs.push('Potência nominal')
+    if (!cfg.tensaoAlim.trim())    errs.push('Tensão de alimentação')
+    if (!cfg.protocolo.trim())     errs.push('Protocolo LABELO')
+    if (!cfg.responsavel.trim())   errs.push('Responsável técnico')
+    if (photos.length === 0)       errs.push('Fotos do ensaio')
+    if (!docx.html)                errs.push('Arquivo .docx (Radimation)')
+    return errs
+  }, [cfg, photos.length, docx.html, labelId])
+
+  /* ── salvar no histórico local ── */
+  function salvarRelatorioLocal(finalCfg: Cispr15Config) {
+    try {
+      const raw = localStorage.getItem(RELATORIOS_KEY)
+      const list: RelatorioSalvo[] = raw ? JSON.parse(raw) : []
+      const existingIdx = list.findIndex(r =>
+        finalCfg.numRelatorio && r.numRelatorio === finalCfg.numRelatorio
+      )
+      const id = existingIdx >= 0 ? list[existingIdx].id : Date.now().toString()
+      const entry: RelatorioSalvo = {
+        id,
+        numRelatorio: finalCfg.numRelatorio,
+        dataEmissao:  finalCfg.dataEmissao,
+        clienteNome:  finalCfg.cliente,
+        protocolo:    finalCfg.protocolo,
+        produto:      finalCfg.produto,
+        cfg:          finalCfg,
+        photos:       photos.map(p => ({ name: p.name, base64: p.base64 })),
+        docxFilename: docx.filename,
+        emendas:      existingIdx >= 0 ? list[existingIdx].emendas : [],
+      }
+      if (existingIdx >= 0) list[existingIdx] = entry
+      else list.unshift(entry)
+      localStorage.setItem(RELATORIOS_KEY, JSON.stringify(list))
+      if (docx.html) {
+        try { localStorage.setItem(RELATORIO_DOCX_PFX + id, docx.html) } catch {}
+      }
+    } catch (e: any) {
+      const msg = String(e)
+      if (msg.includes('QuotaExceeded') || msg.includes('quota') || msg.includes('QUOTA')) {
+        alert('Aviso: armazenamento local cheio — fotos não salvas no histórico. O relatório foi registrado normalmente na planilha.')
+      }
+    }
+  }
+
+  /* ── carregar relatório salvo ── */
+  function handleCarregarRelatorio(entry: RelatorioSalvo) {
+    setCfg(entry.cfg)
+    setPhotos(entry.photos.map(p => ({ ...p, url: `data:image/jpeg;base64,${p.base64}` })))
+    const docxHtml = localStorage.getItem(RELATORIO_DOCX_PFX + entry.id)
+    setDocx({ loading: false, html: docxHtml, filename: entry.docxFilename })
+    localStorage.setItem(CFG_KEY, JSON.stringify(entry.cfg))
+    localStorage.setItem(PHOTOS_KEY, JSON.stringify(entry.photos))
+    if (docxHtml) localStorage.setItem(DOCX_HTML_KEY, docxHtml)
+    else localStorage.removeItem(DOCX_HTML_KEY)
+    localStorage.setItem(DOCX_NAME_KEY, entry.docxFilename ?? '')
+    localStorage.removeItem(EMENDA_DRAFT_KEY)
+    setTab('formulario')
+    flash4(`Relatório "${entry.numRelatorio}" carregado`)
+  }
+
+  /* ── ver PDF de relatório salvo ── */
+  function handleVerPDFRelatorio(entry: RelatorioSalvo) {
+    setCfg(entry.cfg)
+    setPhotos(entry.photos.map(p => ({ ...p, url: `data:image/jpeg;base64,${p.base64}` })))
+    const docxHtml = localStorage.getItem(RELATORIO_DOCX_PFX + entry.id)
+    setDocx({ loading: false, html: docxHtml, filename: entry.docxFilename })
+    localStorage.setItem(CFG_KEY, JSON.stringify(entry.cfg))
+    localStorage.setItem(PHOTOS_KEY, JSON.stringify(entry.photos))
+    if (docxHtml) localStorage.setItem(DOCX_HTML_KEY, docxHtml)
+    else localStorage.removeItem(DOCX_HTML_KEY)
+    localStorage.setItem(DOCX_NAME_KEY, entry.docxFilename ?? '')
+    localStorage.removeItem(EMENDA_DRAFT_KEY)
+    router.push('/dashboard/formularios/emc/cispr15/relatorio')
+  }
+
   /* ── gerar relatório ── */
   async function gerarRelatorio() {
+    if (validationErrors.length > 0) {
+      alert(`Preencha os campos obrigatórios antes de gerar:\n\n• ${validationErrors.join('\n• ')}`)
+      return
+    }
     setGerandoRel(true)
     try {
+      // Verificar protocolo duplicado (somente para novos relatórios)
+      if (!cfg.numRelatorio && cfg.protocolo.trim()) {
+        // Verificar localmente primeiro
+        const localRaw = localStorage.getItem(RELATORIOS_KEY)
+        if (localRaw) {
+          const localList: RelatorioSalvo[] = JSON.parse(localRaw)
+          const dup = localList.find(r => r.protocolo.trim().toLowerCase() === cfg.protocolo.trim().toLowerCase())
+          if (dup) {
+            const ok = confirm(
+              `⚠ Protocolo "${cfg.protocolo}" já possui o relatório "${dup.numRelatorio}" no histórico local.\n\nDeseja continuar e criar um novo registro mesmo assim?`
+            )
+            if (!ok) { setGerandoRel(false); return }
+          }
+        }
+        // Verificar na planilha Excel
+        try {
+          const checkRes = await fetch(`/api/formularios/cispr15/registrar-excel?checkProtocolo=${encodeURIComponent(cfg.protocolo.trim())}`)
+          const checkData = await checkRes.json()
+          if (checkData.exists) {
+            const ok = confirm(
+              `⚠ Protocolo "${cfg.protocolo}" já está registrado na planilha${checkData.numRelatorio ? ` (${checkData.numRelatorio})` : ''}.\n\nDeseja continuar e criar um novo registro mesmo assim?`
+            )
+            if (!ok) { setGerandoRel(false); return }
+          }
+        } catch {}
+      }
+
+      let finalCfg = cfg
       if (!cfg.numRelatorio) {
         const res = await fetch('/api/formularios/cispr15/registrar-excel', {
           method: 'POST',
@@ -235,11 +356,15 @@ export default function Cispr15ConfigPage() {
         })
         const data = await res.json()
         if (data.error) throw new Error(data.error)
-        const updated = { ...cfg, numRelatorio: data.numRelatorio }
-        setCfg(updated)
-        localStorage.setItem(CFG_KEY, JSON.stringify(updated))
-        flash4(`Registrado: ${data.numRelatorio}`)
+        finalCfg = { ...cfg, numRelatorio: data.numRelatorio }
+        setCfg(finalCfg)
+        localStorage.setItem(CFG_KEY, JSON.stringify(finalCfg))
       }
+
+      // Salvar no histórico local
+      salvarRelatorioLocal(finalCfg)
+
+      flash4(`Registrado: ${finalCfg.numRelatorio}`)
       router.push('/dashboard/formularios/emc/cispr15/relatorio')
     } catch (err: any) {
       alert(`Erro ao registrar no Excel: ${err.message}`)
@@ -304,7 +429,6 @@ export default function Cispr15ConfigPage() {
     router.push('/dashboard/formularios/emc/cispr15/lote')
   }
 
-  const labelId = cfg.tipo === 'lampada' ? 'Código de Barras' : 'Número de Série'
   const TENSAO_OPTS = [
     { value: '127',         label: '127 V',                sub: 'apenas' },
     { value: '127_220',     label: '127 V + 220 V',        sub: 'padrão' },
@@ -323,21 +447,26 @@ export default function Cispr15ConfigPage() {
 
       {/* ── Abas ── */}
       <div className="flex gap-1 mb-5 p-1 bg-navy rounded-xl border border-white/6 w-fit">
-        {(['formulario', 'clientes'] as const).map(t => (
-          <button key={t} type="button" onClick={() => setTab(t)}
+        {([
+          { id: 'formulario', label: 'Formulário',  icon: null },
+          { id: 'clientes',   label: 'Clientes',    icon: <Database size={13} /> },
+          { id: 'relatorios', label: 'Relatórios',  icon: <FileText size={13} /> },
+        ] as const).map(t => (
+          <button key={t.id} type="button" onClick={() => setTab(t.id)}
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-              tab === t
+              tab === t.id
                 ? 'bg-[#141B28] text-white border border-white/10 shadow-sm'
                 : 'text-white/35 hover:text-white/60'
             )}>
-            {t === 'clientes' && <Database size={13} />}
-            {t === 'formulario' ? 'Formulário' : 'Clientes'}
+            {t.icon}
+            {t.label}
           </button>
         ))}
       </div>
 
-      {tab === 'clientes' && <ClientesTab onUsar={handleUsarCliente} />}
+      {tab === 'clientes'   && <ClientesTab   onUsar={handleUsarCliente} />}
+      {tab === 'relatorios' && <RelatoriosTab onCarregar={handleCarregarRelatorio} onVerPDF={handleVerPDFRelatorio} />}
 
       {tab === 'formulario' && <div className="space-y-5">
 
@@ -580,6 +709,22 @@ export default function Cispr15ConfigPage() {
           </div>
         </div>
 
+        {/* ── Status de validação ── */}
+        {validationErrors.length > 0 ? (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-500/6 border border-amber-500/15 text-amber-400/80 text-[11px]">
+            <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+            <span>
+              <span className="font-semibold">Pendente: </span>
+              {validationErrors.join(' · ')}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green/6 border border-green/15 text-green-400/80 text-[11px]">
+            <CheckCircle2 size={12} />
+            <span>Pronto — todos os campos obrigatórios preenchidos</span>
+          </div>
+        )}
+
         {/* ── Ações ── */}
         <div className="flex items-center gap-3 flex-wrap">
           <button type="button" onClick={limparDados}
@@ -611,7 +756,10 @@ export default function Cispr15ConfigPage() {
           </button>
 
           <button type="button" onClick={gerarRelatorio} disabled={gerandoRel}
-            className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm font-bold">
+            className={cn(
+              'btn-primary flex items-center gap-2 px-5 py-2.5 text-sm font-bold',
+              validationErrors.length > 0 && 'opacity-50 cursor-not-allowed',
+            )}>
             {gerandoRel ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={15} />}
             {gerandoRel ? 'Registrando…' : 'Gerar Relatório'}
           </button>

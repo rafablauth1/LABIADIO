@@ -112,7 +112,7 @@ export default function EmendaPage() {
     const r = relatorios.find(r => r.id === id)
     if (r) {
       setCfg({ ...r.cfg })
-      setPhotosAlteradas(Array(Math.max(r.photoNames.length, 4)).fill(false))
+      setPhotosAlteradas(Array(Math.max(r.photos.length, 4)).fill(false))
       setDocxAlterado(false)
     }
   }
@@ -139,7 +139,7 @@ export default function EmendaPage() {
       dataEmenda,
       alteracoes,
       cfgOriginal: selected.cfg,
-      photoNamesOriginal: selected.photoNames,
+      photoNamesOriginal: selected.photos.map(p => p.name),
       docxFilenameOriginal: selected.docxFilename,
     }
     localStorage.setItem(EMENDA_DRAFT_KEY, JSON.stringify(draft))
@@ -165,7 +165,7 @@ export default function EmendaPage() {
     )
   }
 
-  const numFotos = Math.max(selected?.photoNames.length ?? 2, 4)
+  const numFotos = Math.max(selected?.photos.length ?? 2, 4)
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -285,8 +285,8 @@ export default function EmendaPage() {
               />
               <span className="text-sm text-white/60 group-hover:text-white/80">
                 Figura {i + 1} – Amostra ensaiada
-                {selected?.photoNames[i] && (
-                  <span className="text-white/25 text-xs ml-2 font-mono">{selected.photoNames[i]}</span>
+                {selected?.photos[i] && (
+                  <span className="text-white/25 text-xs ml-2 font-mono">{selected.photos[i].name}</span>
                 )}
               </span>
             </label>
